@@ -11,6 +11,8 @@
 
 static void SystemFatal(const char *message);
 void close_fd(int signo);
+void *epoll_loop(void *arg);
+static int read_socket(int fd);
 
 struct Stats
 {

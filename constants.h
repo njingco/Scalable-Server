@@ -17,5 +17,8 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <signal.h>
+#include <pthread.h>
+
+#define SERVER_PORT 7000
 
 #endif
