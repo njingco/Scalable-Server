@@ -3,6 +3,7 @@
 int *dataSize;
 #define SERVER_TCP_PORT 7000 // Default port
 #define BUFLEN 1024          // Buffer length
+#define TIMES 100
 
 int main(int argc, char *argv[])
 {
@@ -15,23 +16,28 @@ int main(int argc, char *argv[])
     int times;
     int clntNum;
 
+    port = SERVER_TCP_PORT;
+    times = TIMES;
+    clntNum = 0;
     switch (argc)
     {
-    case 2:
-        host = argv[1]; // Host name
-        port = SERVER_TCP_PORT;
-        break;
-    case 3:
-        host = argv[1];
-        times = atoi(argv[2]); // Number of sends
-        break;
+    // case 2:
+    //     host = argv[1]; // Host name
+    //     times = TIMES;
+    //     clntNum = 0;
+    //     break;
+    // case 3:
+    //     host = argv[1];
+    //     times = atoi(argv[2]); // Number of sends
+    //     clntNum = 0;
+    //     break;
     case 4:
         host = argv[1];
         times = atoi(argv[2]); // Number of sends
         clntNum = atoi(argv[3]);
         break;
     default:
-        fprintf(stderr, "Usage: %s host\n", argv[0]);
+        fprintf(stderr, "Usage: %s host [Times Sent] [Client Number]\n", argv[0]);
         exit(1);
     }
 
