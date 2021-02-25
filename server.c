@@ -2,7 +2,8 @@
 
 //Globals
 int fd_server;
-
+int totalConnected;
+int totalSent;
 int main(int argc, char *argv[])
 {
     struct sigaction act;
@@ -10,6 +11,8 @@ int main(int argc, char *argv[])
     int port = SERVER_PORT;
     struct sockaddr_in addr;
     pthread_t thread[EPOLL_QUEUE_LEN];
+    totalConnected = 0;
+    totalSent = 0;
 
     // Set Up Signal Handler
     act.sa_handler = close_fd;
@@ -106,6 +109,9 @@ void *epoll_loop(void *arg)
             {
                 //socklen_t addr_size = sizeof(remote_addr);
                 fd_new = accept(fd_server, (struct sockaddr *)&remote_addr, &addr_size);
+                totalConnected += 1;
+                fprintf(stdout, "\n Connected: %d", totalConnected);
+
                 if (fd_new == -1)
                 {
                     if (errno != EAGAIN && errno != EWOULDBLOCK)
@@ -156,12 +162,15 @@ static int read_socket(int fd)
             bp += n;
             bytes_to_read -= n;
         }
-        printf("sending:%s\n", buf);
+        // printf("sending:%s\n", buf);
 
         send(fd, buf, BUFLEN, 0);
+        totalSent += 1;
+        fprintf(stdout, "\nSent: %d", totalSent);
         close(fd);
         return TRUE;
     }
+
     close(fd);
     return (0);
 }

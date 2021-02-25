@@ -15,10 +15,11 @@ int main(int argc, char *argv[])
     char str[16];
     int times;
     int clntNum;
-
+    int totalRcvd = 0, totalSent = 0;
     port = SERVER_TCP_PORT;
     times = TIMES;
     clntNum = 0;
+
     switch (argc)
     {
     // case 2:
@@ -69,14 +70,15 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    printf("Connected:    Server Name: %s\n", hp->h_name);
+    // printf("Connected    Server Name: %s\n", hp->h_name);
     pptr = hp->h_addr_list;
-    printf("\t\tIP Address: %s\n", inet_ntop(hp->h_addrtype, *pptr, str, sizeof(str)));
-    printf("Transmit:\n");
+    printf("\nConnected IP Address: %s\n", inet_ntop(hp->h_addrtype, *pptr, str, sizeof(str)));
+    // printf("Transmit:\n");
 
     // get user's text
     fgets(sbuf, BUFLEN, stdin);
     memset(sbuf, 'A', sizeof(sbuf));
+    sbuf[sizeof(sbuf)] = '\0';
 
     int rcved = 0;
     while (rcved < times)
@@ -84,8 +86,9 @@ int main(int argc, char *argv[])
         // Transmit data through the socket
 
         send(sd, sbuf, BUFLEN, 0);
+        totalSent += 1;
 
-        printf("Receive:\n");
+        // printf("Receive:\n");
         bp = rbuf;
         bytes_to_read = BUFLEN;
 
@@ -96,10 +99,15 @@ int main(int argc, char *argv[])
             bp += n;
             bytes_to_read -= n;
         }
-        printf("\n 1");
+        totalRcvd += 1;
+
+        fprintf(stdout, "\nReceived: %s", rbuf);
         fflush(stdout);
         rcved += 1;
     }
+
+    fprintf(stdout, "\nClient(%d) Total Sent: %d", clntNum, totalSent);
+    fprintf(stdout, "\nClient(%d) Total Received: %d", clntNum, totalRcvd);
 
     close(sd);
     return (0);
