@@ -76,7 +76,7 @@ int main(int argc, char *argv[])
     // printf("Transmit:\n");
 
     // get user's text
-    fgets(sbuf, BUFLEN, stdin);
+    // fgets(sbuf, BUFLEN, stdin);
     memset(sbuf, 'A', sizeof(sbuf));
     sbuf[sizeof(sbuf)] = '\0';
 

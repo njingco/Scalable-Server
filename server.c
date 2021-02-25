@@ -58,6 +58,7 @@ int main(int argc, char *argv[])
             SystemFatal("pthread create");
         }
     }
+
     // Join threads
     for (int i = 0; i < EPOLL_QUEUE_LEN; i++)
     {
@@ -76,11 +77,13 @@ void *epoll_loop(void *arg)
 
     // Create the epoll file descriptor
     epoll_fd = epoll_create(EPOLL_QUEUE_LEN);
+
     if (epoll_fd == -1)
         SystemFatal("epoll_create");
 
     // Add the server socket to the epoll event loop
-    event.events = EPOLLIN | EPOLLERR | EPOLLHUP | EPOLLET;
+    // event.events = EPOLLIN | EPOLLERR | EPOLLHUP | EPOLLET;
+    event.events = EPOLLIN | EPOLLET;
     event.data.fd = fd_server;
     if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, fd_server, &event) == -1)
         SystemFatal("epoll_ctl");
@@ -98,7 +101,9 @@ void *epoll_loop(void *arg)
             // Case 1: Error condition
             if (events[i].events & (EPOLLHUP | EPOLLERR))
             {
-                fputs("epoll: EPOLLERR", stderr);
+                // fputs("epoll: EPOLLERR", stderr);
+                fprintf(stderr, "\nepoll: EPOLLERR");
+                fflush(stderr);
                 close(events[i].data.fd);
                 continue;
             }
@@ -109,28 +114,27 @@ void *epoll_loop(void *arg)
             {
                 //socklen_t addr_size = sizeof(remote_addr);
                 fd_new = accept(fd_server, (struct sockaddr *)&remote_addr, &addr_size);
-                totalConnected += 1;
-                fprintf(stdout, "\n Connected: %d", totalConnected);
-
                 if (fd_new == -1)
                 {
                     if (errno != EAGAIN && errno != EWOULDBLOCK)
                     {
-                        perror("accept");
+                        // perror("accept");
                     }
                     continue;
                 }
 
                 // Make the fd_new non-blocking
                 if (fcntl(fd_new, F_SETFL, O_NONBLOCK | fcntl(fd_new, F_GETFL, 0)) == -1)
-                    SystemFatal("fcntl");
+                    perror("\nunblock");
 
                 // Add the new socket descriptor to the epoll loop
                 event.data.fd = fd_new;
                 if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, fd_new, &event) == -1)
                     SystemFatal("epoll_ctl");
 
-                printf("Remote Address:  %s\n", inet_ntoa(remote_addr.sin_addr));
+                totalConnected += 1;
+                fprintf(stdout, "\nTotal Connected: %d \t\t Remote Address:  %s\n", totalConnected, inet_ntoa(remote_addr.sin_addr));
+                // printf("\nRemote Address:  %s", inet_ntoa(remote_addr.sin_addr));
                 continue;
             }
 
@@ -139,7 +143,7 @@ void *epoll_loop(void *arg)
             {
                 // epoll will remove the fd from its set
                 // automatically when the fd is closed
-                close(events[i].data.fd);
+                // close(events[i].data.fd);
             }
         }
     }
@@ -149,30 +153,40 @@ void *epoll_loop(void *arg)
 // Function to read socket data
 static int read_socket(int fd)
 {
-    int n, bytes_to_read;
-    char *bp, buf[BUFLEN];
+    int n = -1, bytes_to_read = BUFLEN;
+    char rbuf[BUFLEN];
+    char *rbp;
 
-    while (TRUE)
+    // fprintf(stdout, "test");
+    rbp = rbuf;
+
+    while (n != 0)
     {
-
-        bp = buf;
-        bytes_to_read = BUFLEN;
-        while ((n = recv(fd, bp, bytes_to_read, 0)) < BUFLEN)
+        while ((n = recv(fd, &rbuf, bytes_to_read, 0)) < BUFLEN)
         {
-            bp += n;
-            bytes_to_read -= n;
+            if (n == -1 && (errno != EAGAIN || errno != EWOULDBLOCK))
+            {
+                perror("\nrcv error");
+                return n;
+            }
+            else
+            {
+                rbp += n;
+                bytes_to_read -= n;
+            }
         }
-        // printf("sending:%s\n", buf);
-
-        send(fd, buf, BUFLEN, 0);
+        send(fd, rbp, BUFLEN, 0);
         totalSent += 1;
-        fprintf(stdout, "\nSent: %d", totalSent);
-        close(fd);
-        return TRUE;
+        // printf("%d sending...\n", totalSent);
+
+        memset(rbuf, '\0', sizeof(rbuf));
+        rbp = rbuf;
+        bytes_to_read = BUFLEN;
     }
 
-    close(fd);
-    return (0);
+    // fprintf(stdout, "\nMessages Sent: %d\n", totalSent);
+    fflush(stdout);
+    return TRUE;
 }
 
 // Prints the error stored in errno and aborts the program.
