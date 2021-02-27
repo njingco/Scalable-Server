@@ -22,20 +22,10 @@ int main(int argc, char *argv[])
 
     switch (argc)
     {
-    // case 2:
-    //     host = argv[1]; // Host name
-    //     times = TIMES;
-    //     clntNum = 0;
-    //     break;
-    // case 3:
-    //     host = argv[1];
-    //     times = atoi(argv[2]); // Number of sends
-    //     clntNum = 0;
-    //     break;
     case 4:
-        host = argv[1];
-        times = atoi(argv[2]); // Number of sends
-        clntNum = atoi(argv[3]);
+        host = argv[1];          // IP
+        times = atoi(argv[2]);   // Number of sends
+        clntNum = atoi(argv[3]); // Client Number
         break;
     default:
         fprintf(stderr, "Usage: %s host [Times Sent] [Client Number]\n", argv[0]);
@@ -70,13 +60,10 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    // printf("Connected    Server Name: %s\n", hp->h_name);
     pptr = hp->h_addr_list;
-    printf("\nConnected IP Address: %s\n", inet_ntop(hp->h_addrtype, *pptr, str, sizeof(str)));
-    // printf("Transmit:\n");
+    // printf("\nConnected IP Address: %s\n", inet_ntop(hp->h_addrtype, *pptr, str, sizeof(str)));
 
-    // get user's text
-    // fgets(sbuf, BUFLEN, stdin);
+    // Set up Buffer
     memset(sbuf, 'A', sizeof(sbuf));
     sbuf[sizeof(sbuf)] = '\0';
 
@@ -84,16 +71,14 @@ int main(int argc, char *argv[])
     while (rcved < times)
     {
         // Transmit data through the socket
-
         send(sd, sbuf, BUFLEN, 0);
         totalSent += 1;
 
-        // printf("Receive:\n");
         bp = rbuf;
         bytes_to_read = BUFLEN;
-
-        // client makes repeated calls to recv until no more data is expected to arrive.
         n = 0;
+
+        // Wait for Server Echo
         while ((n = recv(sd, bp, bytes_to_read, 0)) < BUFLEN)
         {
             bp += n;
@@ -101,16 +86,17 @@ int main(int argc, char *argv[])
         }
         totalRcvd += 1;
 
-        fprintf(stdout, "\nReceived: %s", rbuf);
-        fflush(stdout);
+        // Received Data
+        // fprintf(stdout, "\nReceived: %s", rbuf);
+        // fflush(stdout);
         rcved += 1;
     }
 
-    fprintf(stdout, "\nClient(%d) Total Sent: %d", clntNum, totalSent);
-    fprintf(stdout, "\nClient(%d) Total Received: %d", clntNum, totalRcvd);
-    fflush(stdout);
+    // Total Number Sent and Total Number Received
+    // fprintf(stdout, "\nClient(%d) Total Sent: %d", clntNum, totalSent);
+    // fprintf(stdout, "\nClient(%d) Total Received: %d", clntNum, totalRcvd);
+    // fflush(stdout);
 
     close(sd);
     return (0);
-    return 0;
 }
