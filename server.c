@@ -4,201 +4,272 @@
 int fd_server;
 int totalConnected;
 int totalSent;
+
+pthread_mutex_t conn_add;
+pthread_mutex_t conn_sub;
+
 int main(int argc, char *argv[])
 {
     struct sigaction act;
-    int arg;
-    int port = SERVER_PORT;
-    struct sockaddr_in addr;
-    pthread_t thread[EPOLL_QUEUE_LEN];
+    pthread_t thread[THREAD_COUNT];
+
+    // Log Variables
     totalConnected = 0;
     totalSent = 0;
 
-    // Set Up Signal Handler
-    act.sa_handler = close_fd;
-    act.sa_flags = 0;
-    if ((sigemptyset(&act.sa_mask) == -1 || sigaction(SIGINT, &act, NULL) == -1))
+    // Signal Handler
+    signal_handle(&act);
+
+    // Listener Socket
+    fd_server = setup_listener_socket();
+
+    // Create Worker Threads
+    for (int i = 0; i < THREAD_COUNT; i++)
     {
-        //!Print logs
-
-        perror("Failed to set SIGINT handler");
-        exit(EXIT_FAILURE);
-    }
-
-    // Setup listening Socket
-    fd_server = socket(AF_INET, SOCK_STREAM, 0);
-    if (fd_server == -1)
-        SystemFatal("socket");
-
-    // set SO_REUSEADDR imediate port reuse
-    arg = 1;
-    if (setsockopt(fd_server, SOL_SOCKET, SO_REUSEADDR, &arg, sizeof(arg)) == -1)
-        SystemFatal("setsockopt");
-
-    // Make the listening socket non-blocking
-    if (fcntl(fd_server, F_SETFL, O_NONBLOCK | fcntl(fd_server, F_GETFL, 0)) == -1)
-        SystemFatal("fcntl");
-
-    // Bind to the specified listening port
-    memset(&addr, 0, sizeof(struct sockaddr_in));
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    addr.sin_port = htons(port);
-    if (bind(fd_server, (struct sockaddr *)&addr, sizeof(addr)) == -1)
-        SystemFatal("bind");
-
-    // Listen for fd_news; SOMAXCONN is 128 by default
-    if (listen(fd_server, SOMAXCONN) == -1)
-        SystemFatal("listen");
-
-    for (int i = 0; i < EPOLL_QUEUE_LEN; i++)
-    {
-        if (pthread_create(&thread[i], NULL, epoll_loop, (void *)&arg))
+        if (pthread_create(&thread[i], NULL, event_handler, NULL))
         {
             SystemFatal("pthread create");
         }
     }
 
     // Join threads
-    for (int i = 0; i < EPOLL_QUEUE_LEN; i++)
+    for (int i = 0; i < THREAD_COUNT; i++)
     {
         pthread_join(thread[i], NULL);
     }
 
+    fprintf(stdout, "\nEnd Program");
+    fflush(stdout);
+
     return 0;
 }
 
-void *epoll_loop(void *arg)
+void *event_handler(void *arg)
 {
-    int epoll_fd, num_fds, fd_new;
-    static struct epoll_event events[EPOLL_QUEUE_LEN], event;
-    socklen_t addr_size = sizeof(struct sockaddr_in);
+    int epoll_fd = 0;
+    int num_events = 0;
+    struct epoll_event events[EPOLL_QUEUE_LEN];
+    struct epoll_event event;
+
+    epoll_fd = setup_epoll(&event);
+
+    while (1)
+    {
+        num_events = epoll_wait(epoll_fd, events, EPOLL_QUEUE_LEN, -1);
+        if (num_events < 0)
+            SystemFatal("\nError in epoll_wait!");
+
+        for (int i = 0; i < num_events; i++)
+        {
+            // Error Case
+            if (events[i].events & (EPOLLHUP | EPOLLERR))
+            {
+                if (errno != EAGAIN)
+                {
+                    fprintf(stderr, "EPOLL ERROR %d", errno);
+                    // perror("\nEPOLL ERROR");
+                    close(events[i].data.fd);
+                    continue;
+                }
+            }
+            // assert(events[i].events & EPOLLIN);
+
+            // Connection Request
+            if (events[i].data.fd == fd_server)
+            {
+                if (accept_connection(epoll_fd, events) < 0)
+                {
+                    if (errno != EAGAIN)
+                    {
+                        fprintf(stdout, "\nERROR ACCEPTING NEW CONNECTIONS %d", errno);
+                        // perror("\nERROR ACCEPTING NEW CONNECTIONS");
+                        close_fd(errno);
+                    }
+                    else
+                        continue;
+                }
+            }
+            else
+            {
+                int echo = 0;
+                echo = echo_message(events[i].data.fd);
+
+                // Closed Connection
+                if (echo == 0)
+                {
+                    close(events[i].data.fd);
+
+                    pthread_mutex_lock(&conn_sub);
+                    totalConnected -= 1;
+                    pthread_mutex_unlock(&conn_sub);
+
+                    fprintf(stdout, "\nTotal Connected: %d", totalConnected);
+                    fflush(stdout);
+                }
+                else if (echo < 0)
+                {
+                    if (errno != EAGAIN)
+                    {
+                        // perror("\nReceive Error");
+                        fprintf(stdout, "\nReceive Error %d", errno);
+                        close(events[i].data.fd);
+                    }
+                }
+            }
+        }
+    }
+
+    return NULL;
+}
+
+int echo_message(int fd)
+{
+    int n = 1, bytes_to_read;
+    char *bp, buf[BUFLEN];
+
+    while (n != 0)
+    {
+        bp = buf;
+        bytes_to_read = BUFLEN;
+
+        while ((n = recv(fd, bp, bytes_to_read, 0)) < BUFLEN)
+        {
+            if (n == 0)
+                break;
+
+            else if (n < 0)
+                return n;
+            else
+            {
+                bp += n;
+                bytes_to_read -= n;
+            }
+        }
+        send(fd, bp, BUFLEN, 0);
+        totalSent += 1;
+        // printf("%d sending...\n", totalSent);
+    }
+    return 0;
+}
+
+int accept_connection(int epoll_fd, struct epoll_event *event)
+{
+    int client_fd = 0;
     struct sockaddr_in remote_addr;
+    socklen_t addr_size = sizeof(struct sockaddr_in);
+
+    // Accept new Connectinos
+    client_fd = accept(fd_server, (struct sockaddr *)&remote_addr, &addr_size);
+
+    if (client_fd == -1)
+        return -1;
+
+    // Make the fd_new non-blocking
+    if (fcntl(client_fd, F_SETFL, O_NONBLOCK | fcntl(client_fd, F_GETFL, 0)) == -1)
+        perror("\nUNBLOCK:");
+
+    // Add the new socket descriptor to the epoll loop
+    event->data.fd = client_fd;
+    event->events = EPOLLIN | EPOLLET | EPOLLEXCLUSIVE;
+
+    if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_fd, event) == -1)
+        SystemFatal("epoll_ctl");
+
+    // Increment Total Connection
+    pthread_mutex_lock(&conn_add);
+    totalConnected += 1;
+    pthread_mutex_unlock(&conn_add);
+
+    fprintf(stdout, "\nTotal Connected: %d \t\t Remote Address:  %s\n", totalConnected, inet_ntoa(remote_addr.sin_addr));
+    fflush(stdout);
+
+    return 0;
+}
+
+int setup_epoll(struct epoll_event *event)
+{
+    int epoll_fd;
 
     // Create the epoll file descriptor
     epoll_fd = epoll_create(EPOLL_QUEUE_LEN);
-
     if (epoll_fd == -1)
         SystemFatal("epoll_create");
 
     // Add the server socket to the epoll event loop
-    // event.events = EPOLLIN | EPOLLERR | EPOLLHUP | EPOLLET;
-    event.events = EPOLLIN | EPOLLET;
-    event.data.fd = fd_server;
-    if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, fd_server, &event) == -1)
+    event->events = EPOLLIN | EPOLLERR | EPOLLHUP | EPOLLET;
+    event->data.fd = fd_server;
+
+    if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, fd_server, event) == -1)
         SystemFatal("epoll_ctl");
 
-    while (TRUE)
-    {
-        //struct epoll_event events[MAX_EVENTS];
-        num_fds = epoll_wait(epoll_fd, events, EPOLL_QUEUE_LEN, -1);
-
-        if (num_fds < 0)
-            SystemFatal("Error in epoll_wait!");
-
-        for (int i = 0; i < num_fds; i++)
-        {
-            // Case 1: Error condition
-            if (events[i].events & (EPOLLHUP | EPOLLERR))
-            {
-                // fputs("epoll: EPOLLERR", stderr);
-                fprintf(stderr, "\nepoll: EPOLLERR");
-                fflush(stderr);
-                close(events[i].data.fd);
-                continue;
-            }
-            assert(events[i].events & EPOLLIN);
-
-            // Case 2: Server is receiving a connection request
-            if (events[i].data.fd == fd_server)
-            {
-                //socklen_t addr_size = sizeof(remote_addr);
-                fd_new = accept(fd_server, (struct sockaddr *)&remote_addr, &addr_size);
-                if (fd_new == -1)
-                {
-                    if (errno != EAGAIN && errno != EWOULDBLOCK)
-                    {
-                        // perror("accept");
-                    }
-                    continue;
-                }
-
-                // Make the fd_new non-blocking
-                if (fcntl(fd_new, F_SETFL, O_NONBLOCK | fcntl(fd_new, F_GETFL, 0)) == -1)
-                    perror("\nunblock");
-
-                // Add the new socket descriptor to the epoll loop
-                event.data.fd = fd_new;
-                if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, fd_new, &event) == -1)
-                    SystemFatal("epoll_ctl");
-
-                totalConnected += 1;
-                fprintf(stdout, "\nTotal Connected: %d \t\t Remote Address:  %s\n", totalConnected, inet_ntoa(remote_addr.sin_addr));
-                // printf("\nRemote Address:  %s", inet_ntoa(remote_addr.sin_addr));
-                continue;
-            }
-
-            // Case 3: One of the sockets has read data
-            if (!read_socket(events[i].data.fd))
-            {
-                // epoll will remove the fd from its set
-                // automatically when the fd is closed
-                // close(events[i].data.fd);
-            }
-        }
-    }
-    return NULL;
+    return epoll_fd;
 }
 
-// Function to read socket data
-static int read_socket(int fd)
+int setup_listener_socket()
 {
-    int n = -1, bytes_to_read = BUFLEN;
-    char rbuf[BUFLEN];
-    char *rbp;
+    int svrSocket;
+    struct sockaddr_in svrDesc;
 
-    // fprintf(stdout, "test");
-    rbp = rbuf;
+    // Setup listening Socket
+    svrSocket = socket(AF_INET, SOCK_STREAM, 0);
+    if (svrSocket == -1)
+        SystemFatal("socket");
 
-    while (n != 0)
+    // set SO_REUSEADDR imediate port reuse
+    int arg = 1;
+    if (setsockopt(svrSocket, SOL_SOCKET, SO_REUSEADDR, &arg, sizeof(arg)) == -1)
+        SystemFatal("setsockopt");
+
+    // Make the listening socket non-blocking
+    if (fcntl(svrSocket, F_SETFL, O_NONBLOCK | fcntl(svrSocket, F_GETFL, 0)) == -1)
+        SystemFatal("fcntl");
+
+    // Bind to the specified listening port
+    memset(&svrDesc, 0, sizeof(struct sockaddr_in));
+    svrDesc.sin_family = AF_INET;
+    svrDesc.sin_addr.s_addr = htonl(INADDR_ANY);
+    svrDesc.sin_port = htons(SERVER_PORT);
+
+    if (bind(svrSocket, (struct sockaddr *)&svrDesc, sizeof(svrDesc)) == -1)
+        SystemFatal("bind");
+
+    // Listen for fd_news; SOMAXCONN is 128 by default
+    if (listen(svrSocket, SOMAXCONN) == -1)
+        SystemFatal("listen");
+
+    return svrSocket;
+}
+
+void signal_handle(struct sigaction *act)
+{
+    // Set Up Signal Handler
+    act->sa_handler = close_fd;
+    act->sa_flags = 0;
+
+    if ((sigemptyset(&act->sa_mask) == -1 || sigaction(SIGINT, act, NULL) == -1))
     {
-        while ((n = recv(fd, &rbuf, bytes_to_read, 0)) < BUFLEN)
-        {
-            if (n == -1 && (errno != EAGAIN || errno != EWOULDBLOCK))
-            {
-                perror("\nrcv error");
-                return n;
-            }
-            else
-            {
-                rbp += n;
-                bytes_to_read -= n;
-            }
-        }
-        send(fd, rbp, BUFLEN, 0);
-        totalSent += 1;
-        // printf("%d sending...\n", totalSent);
+        //!Print logs
 
-        memset(rbuf, '\0', sizeof(rbuf));
-        rbp = rbuf;
-        bytes_to_read = BUFLEN;
+        perror("Failed to set SIGINT handler");
+        exit(EXIT_FAILURE);
     }
-
-    // fprintf(stdout, "\nMessages Sent: %d\n", totalSent);
+}
+// close fd
+void close_fd(int signo)
+{
+    fprintf(stdout, "\n\n CLOSE");
     fflush(stdout);
-    return TRUE;
+
+    close(fd_server);
+    exit(EXIT_SUCCESS);
 }
 
 // Prints the error stored in errno and aborts the program.
 static void SystemFatal(const char *message)
 {
+    fprintf(stdout, "\n\nSYSTEM FATAL");
+    fflush(stdout);
+
     perror(message);
     exit(EXIT_FAILURE);
-}
-
-// close fd
-void close_fd(int signo)
-{
-    close(fd_server);
-    exit(EXIT_SUCCESS);
 }

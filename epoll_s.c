@@ -192,6 +192,7 @@ static int ClearSocket(int fd)
         printf("sending:%s\n", buf);
 
         send(fd, buf, BUFLEN, 0);
+
         close(fd);
         return TRUE;
     }

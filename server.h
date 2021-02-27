@@ -5,14 +5,20 @@
 
 #define TRUE 1
 #define FALSE 0
-#define EPOLL_QUEUE_LEN 5000
+#define EPOLL_QUEUE_LEN 250
 #define BUFLEN 1024
 #define SERVER_PORT 7000
+#define THREAD_COUNT 10000
+
+void signal_handle(struct sigaction *act);
+int setup_listener_socket();
+void *event_handler(void *arg);
+int setup_epoll(struct epoll_event *event);
+int accept_connection(int epoll_fd, struct epoll_event *event);
+int echo_message(int fd);
 
 static void SystemFatal(const char *message);
 void close_fd(int signo);
-void *epoll_loop(void *arg);
-static int read_socket(int fd);
 
 struct Stats
 {

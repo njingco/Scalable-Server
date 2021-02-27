@@ -108,6 +108,7 @@ int main(int argc, char *argv[])
 
     fprintf(stdout, "\nClient(%d) Total Sent: %d", clntNum, totalSent);
     fprintf(stdout, "\nClient(%d) Total Received: %d", clntNum, totalRcvd);
+    fflush(stdout);
 
     close(sd);
     return (0);
