@@ -34,8 +34,8 @@ int main(int argc, char *argv[])
     svr.sid = sid;
 
     // Open the logfile
-    svr.cvs = fopen(FILE_DIR, "a+");
-    fprintf(svr.cvs, "Client,Sent,Received,Transfer Time\n");
+    svr.file = fopen(FILE_DIR, "a+");
+    fprintf(svr.file, "Client,Sent,Received,Transfer Time\n");
     // Make client processes
 
     for (int i = 0; i < clients - 1; i++)
@@ -127,7 +127,7 @@ void client_work(struct ServerInfo info)
     // Close socket
     close(sd);
     P(svr.sid);
-    fprintf(svr.cvs, "%d,%d,%d,%ld\n", svr.clientNum, svr.clientSent, svr.clientRcvd, t_time);
+    fprintf(svr.file, "%d,%d,%d,%ld\n", svr.clientNum, svr.clientSent, svr.clientRcvd, t_time);
     // fprintf(stdout, "\nDisconnected: #%d               ", svr.clientNum);
     V(svr.sid);
 }

@@ -5,7 +5,7 @@
 #define SERVER_TCP_PORT 7000 // Default port
 #define THREAD_COUNT 15000
 #define NUM_LEN 6
-#define FILE_DIR "clientLog.cvs"
+#define FILE_DIR "clientLog.csv"
 
 struct ServerInfo
 {
@@ -17,7 +17,7 @@ struct ServerInfo
     int clientSent;
     int clientRcvd;
     int sid;
-    FILE *cvs;
+    FILE *file;
 };
 
 void client_work(struct ServerInfo info);
