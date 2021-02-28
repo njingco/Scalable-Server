@@ -39,33 +39,39 @@ int main(int argc, char *argv[])
     svr.cvs = fopen(FILE_DIR, "a+");
 
     // Make client processes
-    pid_t pids[clients];
 
     for (int i = 0; i < clients; i++)
     {
-        pids[i] = fork();
-        svr.clientNum = (++i);
+        pid_t id;
 
-        if (pids[i] == 0)
+        if ((id = fork()) < 0)
+        {
+            perror("\nERROR making child");
+            exit(1);
+        }
+        if (id == 0)
         {
             break;
-            // start client process
         }
     }
+
     client_work(svr);
 
-    for (int i = 0; i < clients; ++i)
-    {
-        int status;
-        while (-1 == waitpid(pids[i], &status, 0))
-            ;
-        if (!WIFEXITED(status) || WEXITSTATUS(status) != 0)
-        {
-            fprintf(stdout, "\nProcess Failed");
-            return (1);
-        }
-    }
-    return (0);
+    // for (int i = 0; i < clients; ++i)
+    // {
+    //     int status;
+    //     while (-1 == waitpid(pids[i], &status, 0))
+    //         ;
+    //     if (!WIFEXITED(status) || WEXITSTATUS(status) != 0)
+    //     {
+    //         fprintf(stdout, "\nProcess Failed");
+    //         return (1);
+    //     }
+    // }
+
+    client_work(svr);
+
+    return 0;
 }
 
 void client_work(struct ServerInfo info)
