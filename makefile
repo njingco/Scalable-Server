@@ -10,7 +10,7 @@ client: client.o
 	$(CC) -o client client.o $(CLIB)
 
 clean:
-	rm -f *.o core.* server client serverLog.csv
+	rm -f *.o core.* server client serverLog.csv clientLog.csv
 
 server.o:
 	$(CC) -c server.c

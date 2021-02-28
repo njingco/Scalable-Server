@@ -65,8 +65,6 @@ void client_work(struct ServerInfo info)
 
     // Setup Socket
     sd = setup_client(svr.port, svr.host, svr.clientNum);
-    // fprintf(stdout, "\nConnected : #%d               \n", svr.clientNum);
-    fflush(stdout);
 
     // Send Messages
     char initBuff[BUFLEN], rbuf[svr.msgLen], sbuf[svr.msgLen];
@@ -80,7 +78,6 @@ void client_work(struct ServerInfo info)
     write_init_msg(svr, initBuff);
     memset(sbuf, 'A', sizeof(sbuf));
 
-    fprintf(stdout, "\nSent: %s", initBuff);
     // Start time
     gettimeofday(&start, NULL);
 
