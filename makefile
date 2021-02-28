@@ -6,8 +6,8 @@ all: server client
 server: server.o 
 	$(CC) -o server server.o $(CLIB)
 
-client: client.o 
-	$(CC) -o client client.o $(CLIB)
+client: client.o semaphore.o
+	$(CC) -o client client.o semaphore.o $(CLIB)
 
 clean:
 	rm -f *.o core.* server client
@@ -17,3 +17,7 @@ server.o:
 
 client.o:
 	$(CC) -c client.c
+
+semaphore.o:
+	$(CC) -c semaphore.c
+	 

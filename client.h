@@ -16,6 +16,7 @@ struct ServerInfo
     int clientNum;
     int clientSent;
     int clientRcvd;
+    int sid;
     FILE *cvs;
 };
 

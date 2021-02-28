@@ -1,17 +1,9 @@
 #include "client.h"
-
-int totalRcvd;
-int totalSent;
-int clientNum;
+#include "semaphore.h"
 
 int main(int argc, char *argv[])
 {
-    int clients; // Number of Clients Default
-
-    // VAR default
-    totalRcvd = 0;
-    totalSent = 0;
-    clientNum = 0;
+    int clients = 1; // Number of Clients Default
 
     // Set Default
     struct ServerInfo svr;
@@ -35,9 +27,15 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
+    // initialize Semaphore
+    int sid;
+
+    sid = initsem((key_t)1);
+    svr.sid = sid;
+
     // Open the logfile
     svr.cvs = fopen(FILE_DIR, "a+");
-
+    fprintf(svr.cvs, "Client,Sent,Received,Transfer Time\n");
     // Make client processes
 
     for (int i = 0; i < clients - 1; i++)
@@ -65,10 +63,11 @@ void client_work(struct ServerInfo info)
 {
     struct ServerInfo svr = info;
     int sd;
+    struct timeval start, end;
 
     // Setup Socket
     sd = setup_client(svr.port, svr.host, svr.clientNum);
-    fprintf(stdout, "\nConnected : #%d               \n", clientNum);
+    // fprintf(stdout, "\nConnected : #%d               \n", svr.clientNum);
     fflush(stdout);
 
     // Send Messages
@@ -82,6 +81,9 @@ void client_work(struct ServerInfo info)
 
     write_init_msg(svr, initBuff);
     memset(sbuf, 'A', sizeof(sbuf));
+
+    // Start time
+    gettimeofday(&start, NULL);
 
     while (svr.clientRcvd < (svr.transfers)) // First message is message length
     {
@@ -116,9 +118,18 @@ void client_work(struct ServerInfo info)
         svr.clientRcvd += 1; // Messages Client Received
     }
 
+    // stop time
+    gettimeofday(&end, NULL);
+    long s_time = (long)(start.tv_sec) * 1000 + (start.tv_usec / 1000);
+    long e_time = (long)(end.tv_sec) * 1000 + (end.tv_usec / 1000);
+    long t_time = e_time - s_time;
+
     // Close socket
     close(sd);
-    fprintf(stdout, "\nDisconnected: #%d               ", svr.clientNum);
+    P(svr.sid);
+    fprintf(svr.cvs, "%d,%d,%d,%ld\n", svr.clientNum, svr.clientSent, svr.clientRcvd, t_time);
+    // fprintf(stdout, "\nDisconnected: #%d               ", svr.clientNum);
+    V(svr.sid);
 }
 
 void write_init_msg(struct ServerInfo svr, char *buf)
@@ -143,8 +154,8 @@ void write_log(struct ServerInfo svr)
     // Connected to (svr->host)
     // CLient Number (svr->clientNum)
     // Lengh of Message (svr->msgLen)
-    totalSent += svr.clientSent;
-    totalRcvd += svr.clientRcvd;
+    // totalSent += svr.clientSent;
+    // totalRcvd += svr.clientRcvd;
 
     // Write log here
 }
