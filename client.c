@@ -7,7 +7,7 @@ int clientNum;
 int main(int argc, char *argv[])
 {
     int clients; // Number of Clients Default
-    int status = 0;
+
     // VAR default
     totalRcvd = 0;
     totalSent = 0;
@@ -39,14 +39,14 @@ int main(int argc, char *argv[])
     svr.cvs = fopen(FILE_DIR, "a+");
 
     // Make client processes
-    pid_t id = 0;
+    pid_t pids[clients];
 
     for (int i = 0; i < clients; i++)
     {
-        id = fork();
+        pids[i] = fork();
         svr.clientNum = (++i);
 
-        if (id == 0)
+        if (pids[i] == 0)
         {
             break;
             // start client process
@@ -54,9 +54,16 @@ int main(int argc, char *argv[])
     }
     client_work(svr);
 
-    while ((id = waitpid(-1, &status, 0)) != -1)
+    for (int i = 0; i < clients; ++i)
     {
-        printf("Process %d terminated\n", id);
+        int status;
+        while (-1 == waitpid(pids[i], &status, 0))
+            ;
+        if (!WIFEXITED(status) || WEXITSTATUS(status) != 0)
+        {
+            fprintf(stdout, "\nProcess Failed");
+            return (1);
+        }
     }
     return (0);
 }
@@ -68,6 +75,8 @@ void client_work(struct ServerInfo info)
 
     // Setup Socket
     sd = setup_client(svr.port, svr.host, svr.clientNum);
+    fprintf(stdout, "\nConnected: %d               \n", clientNum);
+    fflush(stdout);
 
     // Send Messages
     char initBuff[BUFLEN], rbuf[svr.msgLen], sbuf[svr.msgLen];
@@ -103,10 +112,6 @@ void client_work(struct ServerInfo info)
         // Senda Data
         send(sd, sp, msgLen, 0); // Messages
         svr.clientSent += 1;     // Messages Client Sent
-
-        // fprintf(stdout, "\nClient: %d snd %d", svr.clientNum, svr.clientSent);
-        // fflush(stdout);
-
         // Wait for Server Echo
         while ((n = recv(sd, rp, to_read, 0)) < msgLen)
         {
@@ -116,8 +121,6 @@ void client_work(struct ServerInfo info)
 
         // Received Data
         svr.clientRcvd += 1; // Messages Client Received
-        // fprintf(stdout, "\nClient: %d rcv %d", svr.clientNum, svr.clientRcvd);
-        // fflush(stdout);
     }
 
     // Close socket
@@ -184,16 +187,6 @@ int setup_client(int port, char *host, int clientNum)
         perror("connect");
         exit(1);
     }
-    fprintf(stdout, "\nConnected: %d               \n", clientNum);
-    fflush(stdout);
+
     return sd;
 }
-// // Prints the error stored in errno and aborts the program.
-// static void SystemFatal(const char *message)
-// {
-//     fprintf(stdout, "\n\nSYSTEM FATAL");
-//     fflush(stdout);
-
-//     perror(message);
-//     exit(EXIT_FAILURE);
-// }
