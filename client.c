@@ -43,13 +43,16 @@ int main(int argc, char *argv[])
 
     for (int i = 0; i < clients; i++)
     {
-        if ((id = fork()) == 0)
+        id = fork();
+        svr.clientNum = (++i);
+
+        if (id == 0)
         {
-            svr.clientNum = (++i);
+            break;
             // start client process
-            client_work(svr);
         }
     }
+    client_work(svr);
 
     return (0);
 }
