@@ -50,6 +50,10 @@ void *event_handler(void *arg)
     int num_events = 0;
     struct epoll_event events[EPOLL_QUEUE_LEN];
     struct epoll_event event;
+    int *msgLen = (int *)malloc(sizeof(int));
+    int *clientNum = (int *)malloc(sizeof(int));
+    *msgLen = 0;
+    *clientNum = 0;
 
     epoll_fd = setup_epoll(&event);
 
@@ -92,7 +96,7 @@ void *event_handler(void *arg)
             else
             {
                 int echo = 0;
-                echo = echo_message(events[i].data.fd);
+                echo = echo_message(events[i].data.fd, msgLen, clientNum);
 
                 // Closed Connection
                 if (echo == 0)
@@ -101,10 +105,9 @@ void *event_handler(void *arg)
 
                     pthread_mutex_lock(&conn_sub);
                     totalConnected -= 1;
-                    pthread_mutex_unlock(&conn_sub);
-
                     fprintf(stdout, "\nTotal Connected: %d", totalConnected);
                     fflush(stdout);
+                    pthread_mutex_unlock(&conn_sub);
                 }
                 else if (echo < 0)
                 {
@@ -122,17 +125,25 @@ void *event_handler(void *arg)
     return NULL;
 }
 
-int echo_message(int fd)
+int echo_message(int fd, int *msgLen, int *client)
 {
+    int length;
+
+    if (*msgLen == 0)
+        length = BUFLEN;
+    else
+        length = *msgLen;
+
     int n = 1, bytes_to_read;
-    char *bp, buf[BUFLEN];
+    char *bp, buf[length];
 
     while (n != 0)
     {
-        bp = buf;
-        bytes_to_read = BUFLEN;
 
-        while ((n = recv(fd, bp, bytes_to_read, 0)) < BUFLEN)
+        bp = buf;
+        bytes_to_read = length;
+
+        while ((n = recv(fd, bp, bytes_to_read, 0)) < length)
         {
             if (n == 0)
                 break;
@@ -145,11 +156,22 @@ int echo_message(int fd)
                 bytes_to_read -= n;
             }
         }
-        send(fd, bp, BUFLEN, 0);
+        // Get the Client number and Message Length
+        if (*msgLen == 0)
+        {
+            // get number
+            char *token = strtok(buf, "|");
+
+            *msgLen = atoi(token);
+            token = strtok(NULL, "|");
+            *client = atoi(token);
+        }
+        send(fd, bp, length, 0);
         totalSent += 1;
+        break;
         // printf("%d sending...\n", totalSent);
     }
-    return 0;
+    return 1;
 }
 
 int accept_connection(int epoll_fd, struct epoll_event *event)
@@ -178,10 +200,9 @@ int accept_connection(int epoll_fd, struct epoll_event *event)
     // Increment Total Connection
     pthread_mutex_lock(&conn_add);
     totalConnected += 1;
-    pthread_mutex_unlock(&conn_add);
-
     fprintf(stdout, "\nTotal Connected: %d \t\t Remote Address:  %s\n", totalConnected, inet_ntoa(remote_addr.sin_addr));
     fflush(stdout);
+    pthread_mutex_unlock(&conn_add);
 
     return 0;
 }
