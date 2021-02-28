@@ -33,6 +33,9 @@ int main(int argc, char *argv[])
         }
     }
 
+    fprintf(stdout, "\nStart Connecting:");
+    fflush(stdout);
+
     // Join threads
     for (int i = 0; i < THREAD_COUNT; i++)
     {
@@ -51,6 +54,7 @@ void *event_handler(void *arg)
     int num_events = 0;
     struct epoll_event events[EPOLL_QUEUE_LEN];
     struct epoll_event event;
+
     struct ServerStats *svr = (struct ServerStats *)malloc(sizeof(struct ServerStats));
     svr->msgLen = (int *)malloc(sizeof(int));
     svr->client = (int *)malloc(sizeof(int));
@@ -61,6 +65,11 @@ void *event_handler(void *arg)
     *svr->client = 0;
     *svr->rcvd = 0;
     *svr->sent = 0;
+    svr->ip = (char *)malloc(sizeof(char) * IP_LEN);
+    svr->file = fopen(SVR_LOG_DIR, "w+");
+
+    fprintf(svr->file, "Client,IP,Request,Sent\n");
+    fflush(svr->file);
 
     epoll_fd = setup_epoll(&event);
 
@@ -83,12 +92,11 @@ void *event_handler(void *arg)
                     continue;
                 }
             }
-            // assert(events[i].events & EPOLLIN);
 
             // Connection Request
             if (events[i].data.fd == fd_server)
             {
-                if (accept_connection(epoll_fd, events) < 0)
+                if (accept_connection(epoll_fd, events, svr) < 0)
                 {
                     if (errno != EAGAIN)
                     {
@@ -104,9 +112,8 @@ void *event_handler(void *arg)
                     // Increment Total Connection
                     pthread_mutex_lock(&connect_counter);
                     totalConnected += 1;
-                    // fprintf(stdout, "\nTotal Connected: %d \t\t Remote Address:  %s\n", totalConnected, inet_ntoa(remote_addr.sin_addr));
-                    fprintf(stdout, "\rTotal Connected: %d         ", totalConnected);
-                    fflush(stdout);
+                    // fprintf(stdout, "\rTotal Connected: %d         ", totalConnected);
+                    // fflush(stdout);
                     pthread_mutex_unlock(&connect_counter);
                 }
             }
@@ -122,16 +129,18 @@ void *event_handler(void *arg)
 
                     pthread_mutex_lock(&connect_counter);
                     totalConnected -= 1;
-                    fprintf(stdout, "\rTotal Connected: %d         ", totalConnected);
-                    fflush(stdout);
+                    // fprintf(stdout, "\rTotal Connected: %d         ", totalConnected);
+                    // fflush(stdout);
                     pthread_mutex_unlock(&connect_counter);
+
+                    fprintf(svr->file, "%d,%s,%d,%d\n", *svr->client, svr->ip, *svr->rcvd, *svr->sent);
+                    fflush(svr->file);
                 }
                 else if (echo < 0)
                 {
                     if (errno != EAGAIN)
                     {
                         perror("\nReceive Error");
-                        // fprintf(stdout, "\nReceive Error %d", errno);
                         close(events[i].data.fd);
                     }
                 }
@@ -154,7 +163,6 @@ int echo_message(int fd, struct ServerStats *svr)
 
     while (n != 0)
     {
-
         bp = buf;
         bytes_to_read = length;
 
@@ -169,21 +177,22 @@ int echo_message(int fd, struct ServerStats *svr)
             }
         }
         // Get the Client number and Message Length
-        if (*svr->msgLen != BUFLEN)
+        if (*svr->client == 0)
         {
             // get number
             char *token = strtok(buf, "|");
             *svr->client = atoi(token);
 
-            token = strtok(NULL, "|");
-            *svr->msgLen = atoi(token);
+            fprintf(stdout, "\nRCVD: %s", bp);
+            fflush(stdout);
+
+            // ISSUE HERE
+            // token = strtok(NULL, "|");
+            // *svr->msgLen = atoi(token);
+            // token = strtok(NULL, "|");
         }
 
-        // totalRcvd += 1;
         *svr->rcvd += 1;
-        // fprintf(stdout, "\nClient: %d rcv %d", *svr->client, *svr->rcvd);
-        // fflush(stdout);
-        // fprintf(stdout, "\n%d Received...\n", totalRcvd);
 
         if (send(fd, bp, length, 0) < 0)
         {
@@ -191,17 +200,13 @@ int echo_message(int fd, struct ServerStats *svr)
         }
         else
         {
-            // totalSent += 1;
             *svr->sent += 1;
-            // fprintf(stdout, "\nClient: %d snd %d", *svr->client, *svr->sent);
-            // fflush(stdout);
-            // fprintf(stdout, "\n%d Sent...\n", totalSent);
         }
     }
     return 0;
 }
 
-int accept_connection(int epoll_fd, struct epoll_event *event)
+int accept_connection(int epoll_fd, struct epoll_event *event, struct ServerStats *svr)
 {
     int client_fd = 0;
     struct sockaddr_in remote_addr;
@@ -223,6 +228,8 @@ int accept_connection(int epoll_fd, struct epoll_event *event)
 
     if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_fd, event) == -1)
         SystemFatal("epoll_ctl");
+
+    strcpy(svr->ip, inet_ntoa(remote_addr.sin_addr));
 
     return 0;
 }

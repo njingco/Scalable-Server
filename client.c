@@ -1,6 +1,8 @@
 #include "client.h"
 #include "semaphore.h"
 
+sem_t sem;
+
 int main(int argc, char *argv[])
 {
     int clients = 1; // Number of Clients Default
@@ -28,19 +30,17 @@ int main(int argc, char *argv[])
     }
 
     // initialize Semaphore
-    int sid;
-
-    sid = initsem((key_t)1);
-    svr.sid = sid;
+    sem_init(&sem, 0, 0);
 
     // Open the logfile
-    svr.file = fopen(FILE_DIR, "a+");
+    svr.file = fopen(CLNT_LOG_DIR, "w+");
     fprintf(svr.file, "Client,Sent,Received,Transfer Time\n");
     // Make client processes
 
     for (int i = 0; i < clients - 1; i++)
     {
         pid_t id;
+        sem_post(&sem);
 
         svr.clientNum = (i + 1);
         if ((id = fork()) < 0)
@@ -50,6 +50,7 @@ int main(int argc, char *argv[])
         }
         if (id == 0)
         {
+            sem_wait(&sem);
             break;
         }
     }
@@ -122,14 +123,15 @@ void client_work(struct ServerInfo info)
     gettimeofday(&end, NULL);
     long s_time = (long)(start.tv_sec) * 1000 + (start.tv_usec / 1000);
     long e_time = (long)(end.tv_sec) * 1000 + (end.tv_usec / 1000);
-    long t_time = e_time - s_time;
+    double t_time = (e_time - s_time) / 1000;
 
     // Close socket
     close(sd);
-    P(svr.sid);
-    fprintf(svr.file, "%d,%d,%d,%ld\n", svr.clientNum, svr.clientSent, svr.clientRcvd, t_time);
-    // fprintf(stdout, "\nDisconnected: #%d               ", svr.clientNum);
-    V(svr.sid);
+
+    // P(svr.sid);
+    fprintf(svr.file, "%d,%d,%d,%f\n", svr.clientNum, svr.clientSent, svr.clientRcvd, t_time);
+    fflush(svr.file);
+    // V(svr.sid);
 }
 
 void write_init_msg(struct ServerInfo svr, char *buf)
@@ -146,18 +148,6 @@ void write_init_msg(struct ServerInfo svr, char *buf)
 
     strncat(buf, length, strlen(length));
     strncat(buf, split, 1);
-}
-
-void write_log(struct ServerInfo svr)
-{
-    // Add to total Massages sent and received
-    // Connected to (svr->host)
-    // CLient Number (svr->clientNum)
-    // Lengh of Message (svr->msgLen)
-    // totalSent += svr.clientSent;
-    // totalRcvd += svr.clientRcvd;
-
-    // Write log here
 }
 
 int setup_client(int port, char *host, int clientNum)

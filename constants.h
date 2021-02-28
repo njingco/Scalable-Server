@@ -20,6 +20,7 @@
 #include <pthread.h>
 #include <sys/wait.h>
 #include <sys/time.h>
+#include <semaphore.h>
 
 #define SERVER_PORT 7000
 #define BUFLEN 1024 // Buffer length
