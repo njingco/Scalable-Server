@@ -24,7 +24,7 @@ int main(int argc, char *argv[])
     // Log File
     FILE *file = fopen(SVR_LOG_DIR, "a+");
 
-    fprintf(file, "Client,IP,Request,Sent\n");
+    fprintf(file, "IP,Client,Request,Sent\n");
     fflush(file);
 
     // Listener Socket
@@ -134,10 +134,11 @@ void *event_handler(void *arg)
                     totalConnected -= 1;
                     fprintf(stdout, "\rTotal Connected: %d         ", totalConnected);
                     fflush(stdout);
-                    pthread_mutex_unlock(&connect_counter);
 
-                    fprintf(svr->file, "%d,%s,%d,%d\n", *svr->client, svr->ip, *svr->rcvd, *svr->sent);
+                    // IP, Client, number requested, number sent
+                    fprintf(svr->file, "%s,%d,%d,%d\n", svr->ip, *svr->client, *svr->rcvd, *svr->sent);
                     fflush(svr->file);
+                    pthread_mutex_unlock(&connect_counter);
                 }
                 else if (echo < 0)
                 {
@@ -150,7 +151,6 @@ void *event_handler(void *arg)
             }
         }
     }
-
     return NULL;
 }
 

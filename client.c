@@ -1,7 +1,4 @@
 #include "client.h"
-#include "semaphore.h"
-
-sem_t sem;
 
 int main(int argc, char *argv[])
 {
@@ -29,9 +26,6 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    // initialize Semaphore
-    sem_init(&sem, 0, 0);
-
     // Open the logfile
     svr.file = fopen(CLNT_LOG_DIR, "w+");
     fprintf(svr.file, "Client,Sent,Received,Transfer Time(ms)\n");
@@ -41,7 +35,6 @@ int main(int argc, char *argv[])
     for (int i = 1; i < clients; i++)
     {
         pid_t id;
-        sem_post(&sem);
 
         if ((id = fork()) < 0)
         {
@@ -50,13 +43,11 @@ int main(int argc, char *argv[])
         }
         if (id == 0)
         {
-            sem_wait(&sem);
             svr.clientNum = (i);
             break;
         }
         if (id != 0 && i == (clients - 1))
         {
-            // sem_post(&sem);
             svr.clientNum = (i + 1);
         }
     }
@@ -135,10 +126,8 @@ void client_work(struct ServerInfo info)
     // Close socket
     close(sd);
 
-    // P(svr.sid);
     fprintf(svr.file, "%d,%d,%d,%ld\n", svr.clientNum, svr.clientSent, svr.clientRcvd, t_time);
     fflush(svr.file);
-    // V(svr.sid);
 }
 
 void write_init_msg(struct ServerInfo svr, char *buf)
