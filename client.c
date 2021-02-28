@@ -1,31 +1,36 @@
 #include "client.h"
 
-int *dataSize;
-int totalRcvd = 0;
-int totalSent = 0;
-
+int totalRcvd;
+int totalSent;
+int clientNum;
 pthread_mutex_t total_mux;
+pthread_mutex_t clientNum_mux;
 
 int main(int argc, char *argv[])
 {
     int clients; // Number of Clients Default
 
+    // VAR default
+    totalRcvd = 0;
+    totalSent = 0;
+    clientNum = 0;
+
     // Set Default
-    struct ServerInfo *svr = (struct ServerInfo *)malloc(sizeof(struct ServerInfo));
-    svr->port = SERVER_TCP_PORT;
-    svr->transfers = 1;
-    svr->clientNum = 0;
-    svr->clientSent = 0;
-    svr->clientRcvd = 0;
-    svr->msgLen = BUFLEN;
+    struct ServerInfo svr;
+    svr.port = SERVER_TCP_PORT;
+    svr.transfers = 1;
+    svr.clientNum = 0;
+    svr.clientSent = 0;
+    svr.clientRcvd = 0;
+    svr.msgLen = BUFLEN;
 
     switch (argc)
     {
     case 5:
-        clients = atoi(argv[1]);        // Number of clients
-        svr->host = argv[2];            // IP
-        svr->transfers = atoi(argv[3]); // Number of Transfers
-        svr->msgLen = atoi(argv[4]);    // Message Length
+        clients = atoi(argv[1]);       // Number of clients
+        svr.host = argv[2];            // IP
+        svr.transfers = atoi(argv[3]); // Number of Transfers
+        svr.msgLen = atoi(argv[4]);    // Message Length
         break;
     default:
         fprintf(stderr, "Usage: [Number of Clients] [IP] [Transfer Times] [Message Length]\n");
@@ -33,15 +38,14 @@ int main(int argc, char *argv[])
     }
 
     // Open the logfile
-    svr->cvs = fopen(FILE_DIR, "a+");
+    svr.cvs = fopen(FILE_DIR, "a+");
 
     // Create the Client Threads
     pthread_t thread[clients];
 
     for (int i = 0; i < clients; i++)
     {
-        svr->clientNum = (i + 1);
-        if (pthread_create(&thread[i], NULL, client_work, (void *)svr))
+        if (pthread_create(&thread[i], NULL, client_work, (void *)&svr))
         {
             SystemFatal("pthread create");
         }
@@ -60,14 +64,18 @@ int main(int argc, char *argv[])
 
 void *client_work(void *arg)
 {
-    struct ServerInfo *svr = (struct ServerInfo *)arg;
+    struct ServerInfo svr = *((struct ServerInfo *)arg);
     int sd;
 
+    pthread_mutex_lock(&clientNum_mux);
+    svr.clientNum = (clientNum += 1);
+    pthread_mutex_unlock(&clientNum_mux);
+
     // Setup Socket
-    sd = setup_client(*svr);
+    sd = setup_client(svr);
 
     // Send Messages
-    char initSBuff[BUFLEN], rbuf[svr->msgLen], sbuf[svr->msgLen];
+    char initSBuff[BUFLEN], rbuf[svr.msgLen], sbuf[svr.msgLen];
     char *rp, *sp;
     int n, msgLen;
 
@@ -75,14 +83,14 @@ void *client_work(void *arg)
     memset(initSBuff, 0, sizeof(initSBuff));
     memset(sbuf, 0, sizeof(sbuf));
 
-    write_init_msg(*svr, initSBuff);
+    write_init_msg(svr, initSBuff);
     memset(sbuf, 'A', sizeof(sbuf));
 
-    while (svr->clientRcvd < (svr->transfers + 1)) // First message is message length
+    while (svr.clientRcvd < (svr.transfers + 1)) // First message is message length
     {
         n = 0;
 
-        if (svr->clientRcvd == 0)
+        if (svr.clientRcvd == 0)
         {
             sp = initSBuff;
             rp = initSBuff;
@@ -92,12 +100,12 @@ void *client_work(void *arg)
         {
             sp = sbuf;
             rp = rbuf;
-            msgLen = svr->msgLen;
+            msgLen = svr.msgLen;
         }
 
         // Senda Data
         send(sd, sp, msgLen, 0); // Messages
-        svr->clientSent += 1;    // Messages Client Sent
+        svr.clientSent += 1;     // Messages Client Sent
 
         // Wait for Server Echo
         while ((n = recv(sd, rp, msgLen, 0)) < BUFLEN)
@@ -107,7 +115,7 @@ void *client_work(void *arg)
         }
 
         // Received Data
-        svr->clientRcvd += 1; // Messages Client Received
+        svr.clientRcvd += 1; // Messages Client Received
     }
 
     // Close socket

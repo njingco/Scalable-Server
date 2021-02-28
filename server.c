@@ -161,14 +161,20 @@ int echo_message(int fd, int *msgLen, int *client)
         {
             // get number
             char *token = strtok(buf, "|");
-
-            *msgLen = atoi(token);
-            token = strtok(NULL, "|");
             *client = atoi(token);
+
+            token = strtok(NULL, "|");
+            *msgLen = atoi(token);
+
+            fprintf(stdout, "\nClient %d | Size: %d", *client, *msgLen);
         }
-        send(fd, bp, length, 0);
-        totalSent += 1;
-        break;
+        if (send(fd, bp, length, 0) < 0)
+        {
+            fprintf(stderr, "\nSending ERROR %d", errno);
+        }
+        else
+            totalSent += 1;
+        // break;
         // printf("%d sending...\n", totalSent);
     }
     return 1;
