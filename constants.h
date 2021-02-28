@@ -20,6 +20,6 @@
 #include <pthread.h>
 
 #define SERVER_PORT 7000
-#define BUFLEN 500 // Buffer length
+#define BUFLEN 1024 // Buffer length
 
 #endif

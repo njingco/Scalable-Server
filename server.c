@@ -6,8 +6,7 @@ int totalConnected;
 int totalSent;
 int totalRcvd;
 
-pthread_mutex_t conn_add;
-pthread_mutex_t conn_sub;
+pthread_mutex_t connect_counter;
 
 int main(int argc, char *argv[])
 {
@@ -58,7 +57,7 @@ void *event_handler(void *arg)
     svr->rcvd = (int *)malloc(sizeof(int));
     svr->sent = (int *)malloc(sizeof(int));
 
-    *svr->msgLen = 0;
+    *svr->msgLen = BUFLEN;
     *svr->client = 0;
     *svr->rcvd = 0;
     *svr->sent = 0;
@@ -111,12 +110,11 @@ void *event_handler(void *arg)
                 {
                     close(events[i].data.fd);
 
-                    pthread_mutex_lock(&conn_sub);
+                    pthread_mutex_lock(&connect_counter);
                     totalConnected -= 1;
-                    fprintf(stdout, "\nTotal Connected: %d", totalConnected);
+                    fprintf(stdout, "\rTotal Connected: %d         ", totalConnected);
                     fflush(stdout);
-
-                    pthread_mutex_unlock(&conn_sub);
+                    pthread_mutex_unlock(&connect_counter);
                 }
                 else if (echo < 0)
                 {
@@ -136,11 +134,9 @@ void *event_handler(void *arg)
 
 int echo_message(int fd, struct ServerStats *svr)
 {
-    int length;
+    int length = BUFLEN;
 
-    if (*svr->msgLen == 0)
-        length = BUFLEN;
-    else
+    if (*svr->msgLen != BUFLEN)
         length = *svr->msgLen;
 
     int n = 1, bytes_to_read;
@@ -163,9 +159,8 @@ int echo_message(int fd, struct ServerStats *svr)
             }
         }
         // Get the Client number and Message Length
-        if (*svr->msgLen == 0)
+        if (*svr->msgLen != BUFLEN)
         {
-
             // get number
             char *token = strtok(buf, "|");
             *svr->client = atoi(token);
@@ -220,12 +215,12 @@ int accept_connection(int epoll_fd, struct epoll_event *event)
         SystemFatal("epoll_ctl");
 
     // Increment Total Connection
-    pthread_mutex_lock(&conn_add);
+    pthread_mutex_lock(&connect_counter);
     totalConnected += 1;
     // fprintf(stdout, "\nTotal Connected: %d \t\t Remote Address:  %s\n", totalConnected, inet_ntoa(remote_addr.sin_addr));
-    fprintf(stdout, "\nTotal Connected: %d", totalConnected);
+    fprintf(stdout, "\rTotal Connected: %d         ", totalConnected);
     fflush(stdout);
-    pthread_mutex_unlock(&conn_add);
+    pthread_mutex_unlock(&connect_counter);
 
     return 0;
 }

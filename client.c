@@ -118,9 +118,7 @@ void client_work(struct ServerInfo info)
 
     // Close socket
     close(sd);
-    fprintf(stdout, "\n------------------");
-    fprintf(stdout, "\nClient: %d Closed", svr.clientNum);
-    fprintf(stdout, "\n------------------\n");
+    fprintf(stdout, "\nDisconnected: %d               ", svr.clientNum);
 }
 
 void write_init_msg(struct ServerInfo svr, char *buf)
@@ -182,7 +180,7 @@ int setup_client(int port, char *host, int clientNum)
         perror("connect");
         exit(1);
     }
-    fprintf(stdout, "\nConnected %d\n", clientNum);
+    fprintf(stdout, "\nConnected: %d               \n", clientNum);
     fflush(stdout);
     return sd;
 }
