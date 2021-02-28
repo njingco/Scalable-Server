@@ -52,10 +52,16 @@ void *event_handler(void *arg)
     int num_events = 0;
     struct epoll_event events[EPOLL_QUEUE_LEN];
     struct epoll_event event;
-    int *msgLen = (int *)malloc(sizeof(int));
-    int *clientNum = (int *)malloc(sizeof(int));
-    *msgLen = 0;
-    *clientNum = 0;
+    struct ServerStats *svr = (struct ServerStats *)malloc(sizeof(struct ServerStats));
+    svr->msgLen = (int *)malloc(sizeof(int));
+    svr->client = (int *)malloc(sizeof(int));
+    svr->rcvd = (int *)malloc(sizeof(int));
+    svr->sent = (int *)malloc(sizeof(int));
+
+    *svr->msgLen = 0;
+    *svr->client = 0;
+    *svr->rcvd = 0;
+    *svr->sent = 0;
 
     epoll_fd = setup_epoll(&event);
 
@@ -98,7 +104,7 @@ void *event_handler(void *arg)
             else
             {
                 int echo = 0;
-                echo = echo_message(events[i].data.fd, msgLen, clientNum);
+                echo = echo_message(events[i].data.fd, svr);
 
                 // Closed Connection
                 if (echo == 0)
@@ -107,7 +113,8 @@ void *event_handler(void *arg)
 
                     pthread_mutex_lock(&conn_sub);
                     totalConnected -= 1;
-                    fprintf(stdout, "\nTotal Connected: %d", totalConnected);
+                    // fprintf(stdout, "\n--Total Connected: %d", totalConnected);
+                    fprintf(stdout, "\n--Disconected: %d", *svr->client);
                     fflush(stdout);
 
                     pthread_mutex_unlock(&conn_sub);
@@ -128,14 +135,14 @@ void *event_handler(void *arg)
     return NULL;
 }
 
-int echo_message(int fd, int *msgLen, int *client)
+int echo_message(int fd, struct ServerStats *svr)
 {
     int length;
 
-    if (*msgLen == 0)
+    if (*svr->msgLen == 0)
         length = BUFLEN;
     else
-        length = *msgLen;
+        length = *svr->msgLen;
 
     int n = 1, bytes_to_read;
     char *bp, buf[length];
@@ -148,11 +155,7 @@ int echo_message(int fd, int *msgLen, int *client)
 
         while ((n = recv(fd, bp, bytes_to_read, 0)) < length)
         {
-            if (n == 0)
-                // return n;
-                break;
-
-            else if (n < 0)
+            if (n <= 0)
                 return n;
             else
             {
@@ -161,18 +164,22 @@ int echo_message(int fd, int *msgLen, int *client)
             }
         }
         // Get the Client number and Message Length
-        if (*msgLen == 0)
+        if (*svr->msgLen == 0)
         {
+
             // get number
             char *token = strtok(buf, "|");
-            *client = atoi(token);
+            *svr->client = atoi(token);
 
             token = strtok(NULL, "|");
-            *msgLen = atoi(token);
+            *svr->msgLen = atoi(token);
         }
 
-        totalRcvd += 1;
-        fprintf(stdout, "\n%d Received...\n", totalRcvd);
+        // totalRcvd += 1;
+        *svr->rcvd += 1;
+        // fprintf(stdout, "\nClient: %d rcv %d", *svr->client, *svr->rcvd);
+        // fflush(stdout);
+        // fprintf(stdout, "\n%d Received...\n", totalRcvd);
 
         if (send(fd, bp, length, 0) < 0)
         {
@@ -180,8 +187,11 @@ int echo_message(int fd, int *msgLen, int *client)
         }
         else
         {
-            totalSent += 1;
-            fprintf(stdout, "\n%d Sent...\n", totalSent);
+            // totalSent += 1;
+            *svr->sent += 1;
+            // fprintf(stdout, "\nClient: %d snd %d", *svr->client, *svr->sent);
+            // fflush(stdout);
+            // fprintf(stdout, "\n%d Sent...\n", totalSent);
         }
     }
     return 0;
@@ -214,6 +224,7 @@ int accept_connection(int epoll_fd, struct epoll_event *event)
     pthread_mutex_lock(&conn_add);
     totalConnected += 1;
     fprintf(stdout, "\nTotal Connected: %d \t\t Remote Address:  %s\n", totalConnected, inet_ntoa(remote_addr.sin_addr));
+    // fprintf(stdout, "\nTotal Connected: %d", totalConnected);
     fflush(stdout);
     pthread_mutex_unlock(&conn_add);
 
@@ -291,7 +302,7 @@ void signal_handle(struct sigaction *act)
 // close fd
 void close_fd(int signo)
 {
-    fprintf(stdout, "\n\n CLOSE");
+    fprintf(stdout, "\n\n CLOSE\n");
     fflush(stdout);
 
     close(fd_server);

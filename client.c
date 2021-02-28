@@ -75,15 +75,15 @@ void *client_work(void *arg)
     sd = setup_client(svr);
 
     // Send Messages
-    char initSBuff[BUFLEN], rbuf[svr.msgLen], sbuf[svr.msgLen];
+    char initBuff[BUFLEN], rbuf[svr.msgLen], sbuf[svr.msgLen];
     char *rp, *sp;
     int n, msgLen, to_read;
 
     // Set up Buffer with Client Number and length of message
-    memset(initSBuff, 0, sizeof(initSBuff));
+    memset(initBuff, 0, sizeof(initBuff));
     memset(sbuf, 0, sizeof(sbuf));
 
-    write_init_msg(svr, initSBuff);
+    write_init_msg(svr, initBuff);
     memset(sbuf, 'A', sizeof(sbuf));
 
     while (svr.clientRcvd < (svr.transfers)) // First message is message length
@@ -92,8 +92,8 @@ void *client_work(void *arg)
 
         if (svr.clientRcvd == 0)
         {
-            sp = initSBuff;
-            rp = initSBuff;
+            sp = initBuff;
+            rp = initBuff;
             msgLen = BUFLEN;
             to_read = BUFLEN;
         }
@@ -109,6 +109,9 @@ void *client_work(void *arg)
         send(sd, sp, msgLen, 0); // Messages
         svr.clientSent += 1;     // Messages Client Sent
 
+        fprintf(stdout, "\nClient: %d snd %d", svr.clientNum, svr.clientSent);
+        fflush(stdout);
+
         // Wait for Server Echo
         while ((n = recv(sd, rp, to_read, 0)) < msgLen)
         {
@@ -118,10 +121,15 @@ void *client_work(void *arg)
 
         // Received Data
         svr.clientRcvd += 1; // Messages Client Received
+        fprintf(stdout, "\nClient: %d rcv %d", svr.clientNum, svr.clientRcvd);
+        fflush(stdout);
     }
 
     // Close socket
     close(sd);
+    fprintf(stdout, "\n------------------");
+    fprintf(stdout, "\nClient: %d Closed", svr.clientNum);
+    fprintf(stdout, "\n------------------\n");
 
     return NULL;
 }
@@ -188,6 +196,7 @@ int setup_client(struct ServerInfo svr)
         perror("connect");
         exit(1);
     }
+    fprintf(stdout, "\nConnected %d\n", svr.clientNum);
 
     return sd;
 }
