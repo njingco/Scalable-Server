@@ -4,6 +4,7 @@
 int fd_server;
 int totalConnected;
 int totalSent;
+int totalRcvd;
 
 pthread_mutex_t conn_add;
 pthread_mutex_t conn_sub;
@@ -16,6 +17,7 @@ int main(int argc, char *argv[])
     // Log Variables
     totalConnected = 0;
     totalSent = 0;
+    totalRcvd = 0;
 
     // Signal Handler
     signal_handle(&act);
@@ -107,14 +109,15 @@ void *event_handler(void *arg)
                     totalConnected -= 1;
                     fprintf(stdout, "\nTotal Connected: %d", totalConnected);
                     fflush(stdout);
+
                     pthread_mutex_unlock(&conn_sub);
                 }
                 else if (echo < 0)
                 {
                     if (errno != EAGAIN)
                     {
-                        // perror("\nReceive Error");
-                        fprintf(stdout, "\nReceive Error %d", errno);
+                        perror("\nReceive Error");
+                        // fprintf(stdout, "\nReceive Error %d", errno);
                         close(events[i].data.fd);
                     }
                 }
@@ -146,6 +149,7 @@ int echo_message(int fd, int *msgLen, int *client)
         while ((n = recv(fd, bp, bytes_to_read, 0)) < length)
         {
             if (n == 0)
+                // return n;
                 break;
 
             else if (n < 0)
@@ -165,19 +169,22 @@ int echo_message(int fd, int *msgLen, int *client)
 
             token = strtok(NULL, "|");
             *msgLen = atoi(token);
-
-            fprintf(stdout, "\nClient %d | Size: %d", *client, *msgLen);
         }
+
+        totalRcvd += 1;
+        fprintf(stdout, "\n%d Received...\n", totalRcvd);
+
         if (send(fd, bp, length, 0) < 0)
         {
             fprintf(stderr, "\nSending ERROR %d", errno);
         }
         else
+        {
             totalSent += 1;
-        // break;
-        // printf("%d sending...\n", totalSent);
+            fprintf(stdout, "\n%d Sent...\n", totalSent);
+        }
     }
-    return 1;
+    return 0;
 }
 
 int accept_connection(int epoll_fd, struct epoll_event *event)
@@ -220,14 +227,14 @@ int setup_epoll(struct epoll_event *event)
     // Create the epoll file descriptor
     epoll_fd = epoll_create(EPOLL_QUEUE_LEN);
     if (epoll_fd == -1)
-        SystemFatal("epoll_create");
+        SystemFatal("\nepoll_create");
 
     // Add the server socket to the epoll event loop
     event->events = EPOLLIN | EPOLLERR | EPOLLHUP | EPOLLET;
     event->data.fd = fd_server;
 
     if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, fd_server, event) == -1)
-        SystemFatal("epoll_ctl");
+        SystemFatal("\nepoll_ctl");
 
     return epoll_fd;
 }

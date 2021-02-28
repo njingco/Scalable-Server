@@ -33,7 +33,7 @@ int main(int argc, char *argv[])
         svr.msgLen = atoi(argv[4]);    // Message Length
         break;
     default:
-        fprintf(stderr, "Usage: [Number of Clients] [IP] [Transfer Times] [Message Length]\n");
+        fprintf(stderr, "\nUsage: [Number of Clients] [IP] [Transfer Times] [Message Length]\n");
         exit(1);
     }
 
@@ -47,12 +47,12 @@ int main(int argc, char *argv[])
     {
         if (pthread_create(&thread[i], NULL, client_work, (void *)&svr))
         {
-            SystemFatal("pthread create");
+            SystemFatal("\npthread create");
         }
     }
 
     // Join threads
-    for (int i = 0; i < THREAD_COUNT; i++)
+    for (int i = 0; i < clients; i++)
     {
         pthread_join(thread[i], NULL);
     }
@@ -77,7 +77,7 @@ void *client_work(void *arg)
     // Send Messages
     char initSBuff[BUFLEN], rbuf[svr.msgLen], sbuf[svr.msgLen];
     char *rp, *sp;
-    int n, msgLen;
+    int n, msgLen, to_read;
 
     // Set up Buffer with Client Number and length of message
     memset(initSBuff, 0, sizeof(initSBuff));
@@ -86,7 +86,7 @@ void *client_work(void *arg)
     write_init_msg(svr, initSBuff);
     memset(sbuf, 'A', sizeof(sbuf));
 
-    while (svr.clientRcvd < (svr.transfers + 1)) // First message is message length
+    while (svr.clientRcvd < (svr.transfers)) // First message is message length
     {
         n = 0;
 
@@ -95,12 +95,14 @@ void *client_work(void *arg)
             sp = initSBuff;
             rp = initSBuff;
             msgLen = BUFLEN;
+            to_read = BUFLEN;
         }
         else
         {
             sp = sbuf;
             rp = rbuf;
             msgLen = svr.msgLen;
+            to_read = svr.msgLen;
         }
 
         // Senda Data
@@ -108,10 +110,10 @@ void *client_work(void *arg)
         svr.clientSent += 1;     // Messages Client Sent
 
         // Wait for Server Echo
-        while ((n = recv(sd, rp, msgLen, 0)) < BUFLEN)
+        while ((n = recv(sd, rp, to_read, 0)) < msgLen)
         {
             rp += n;
-            msgLen -= n;
+            to_read -= n;
         }
 
         // Received Data

@@ -8,7 +8,7 @@
 #define EPOLL_QUEUE_LEN 250
 #define BUFLEN 1024
 #define SERVER_PORT 7000
-#define THREAD_COUNT 15000
+#define THREAD_COUNT 10000
 
 void signal_handle(struct sigaction *act);
 int setup_listener_socket();
