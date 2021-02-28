@@ -40,10 +40,11 @@ int main(int argc, char *argv[])
 
     // Make client processes
 
-    for (int i = 0; i < clients; i++)
+    for (int i = 0; i < clients - 1; i++)
     {
         pid_t id;
 
+        svr.clientNum = (i + 1);
         if ((id = fork()) < 0)
         {
             perror("\nERROR making child");
@@ -57,20 +58,6 @@ int main(int argc, char *argv[])
 
     client_work(svr);
 
-    // for (int i = 0; i < clients; ++i)
-    // {
-    //     int status;
-    //     while (-1 == waitpid(pids[i], &status, 0))
-    //         ;
-    //     if (!WIFEXITED(status) || WEXITSTATUS(status) != 0)
-    //     {
-    //         fprintf(stdout, "\nProcess Failed");
-    //         return (1);
-    //     }
-    // }
-
-    client_work(svr);
-
     return 0;
 }
 
@@ -81,7 +68,7 @@ void client_work(struct ServerInfo info)
 
     // Setup Socket
     sd = setup_client(svr.port, svr.host, svr.clientNum);
-    fprintf(stdout, "\nConnected: %d               \n", clientNum);
+    fprintf(stdout, "\nConnected : #%d               \n", clientNum);
     fflush(stdout);
 
     // Send Messages
@@ -131,7 +118,7 @@ void client_work(struct ServerInfo info)
 
     // Close socket
     close(sd);
-    fprintf(stdout, "\nDisconnected: %d               ", svr.clientNum);
+    fprintf(stdout, "\nDisconnected: #%d               ", svr.clientNum);
 }
 
 void write_init_msg(struct ServerInfo svr, char *buf)
