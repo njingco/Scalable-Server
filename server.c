@@ -29,9 +29,9 @@ int main(int argc, char *argv[])
 
     // Listener Socket
     fd_server = setup_listener_socket();
-
+    int i = 0;
     // Create Worker Threads
-    for (int i = 0; i < THREAD_COUNT; i++)
+    for (i = 0; i < THREAD_COUNT; i++)
     {
         if (pthread_create(&thread[i], NULL, event_handler, (void *)file))
         {
@@ -43,9 +43,10 @@ int main(int argc, char *argv[])
     fflush(stdout);
 
     // Join threads
-    for (int i = 0; i < THREAD_COUNT; i++)
+    int j = 0;
+    for (j = 0; j < THREAD_COUNT; j++)
     {
-        pthread_join(thread[i], NULL);
+        pthread_join(thread[j], NULL);
     }
 
     fprintf(stdout, "\nEnd Program");
@@ -82,7 +83,8 @@ void *event_handler(void *arg)
         if (num_events < 0)
             SystemFatal("\nError in epoll_wait!");
 
-        for (int i = 0; i < num_events; i++)
+        int i = 0;
+        for (i = 0; i < num_events; i++)
         {
             // Error Case
             if (events[i].events & (EPOLLHUP | EPOLLERR))

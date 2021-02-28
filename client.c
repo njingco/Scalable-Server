@@ -32,7 +32,8 @@ int main(int argc, char *argv[])
     fflush(svr.file);
 
     // Make client processes
-    for (int i = 1; i < clients; i++)
+    int i = 1;
+    for (i = 1; i < clients; i++)
     {
         pid_t id;
 
@@ -52,12 +53,15 @@ int main(int argc, char *argv[])
         }
     }
 
-    client_work(svr);
+    if (client_work(svr))
+    {
+        return -1;
+    }
 
     return 0;
 }
 
-void client_work(struct ServerInfo info)
+int client_work(struct ServerInfo info)
 {
     struct ServerInfo svr = info;
     int sd;
@@ -65,6 +69,8 @@ void client_work(struct ServerInfo info)
 
     // Setup Socket
     sd = setup_client(svr.port, svr.host, svr.clientNum);
+    if (sd < 0)
+        return -1;
 
     // Send Messages
     char initBuff[BUFLEN], rbuf[svr.msgLen], sbuf[svr.msgLen];
@@ -125,6 +131,7 @@ void client_work(struct ServerInfo info)
 
     fprintf(svr.file, "%d,%d,%d,%ld\n", svr.clientNum, svr.clientSent, svr.clientRcvd, t_time);
     fflush(svr.file);
+    return 0;
 }
 
 void write_init_msg(struct ServerInfo svr, char *buf)
@@ -172,7 +179,7 @@ int setup_client(int port, char *host, int clientNum)
     {
         fprintf(stderr, "Can't connect to server\n");
         perror("connect");
-        exit(1);
+        return -1;
     }
 
     return sd;
