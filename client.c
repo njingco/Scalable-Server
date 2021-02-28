@@ -35,14 +35,14 @@ int main(int argc, char *argv[])
     // Open the logfile
     svr.file = fopen(CLNT_LOG_DIR, "w+");
     fprintf(svr.file, "Client,Sent,Received,Transfer Time\n");
-    // Make client processes
+    fflush(svr.file);
 
-    for (int i = 0; i < clients - 1; i++)
+    // Make client processes
+    for (int i = 1; i < clients; i++)
     {
         pid_t id;
         sem_post(&sem);
 
-        svr.clientNum = (i + 1);
         if ((id = fork()) < 0)
         {
             perror("\nERROR making child");
@@ -51,7 +51,13 @@ int main(int argc, char *argv[])
         if (id == 0)
         {
             sem_wait(&sem);
+            svr.clientNum = (i);
             break;
+        }
+        if (id != 0 && i == (clients - 1))
+        {
+            // sem_post(&sem);
+            svr.clientNum = (i + 1);
         }
     }
 
