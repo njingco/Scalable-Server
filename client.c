@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
 
     // Open the logfile
     svr.file = fopen(CLNT_LOG_DIR, "w+");
-    fprintf(svr.file, "Client,Sent,Received,Transfer Time\n");
+    fprintf(svr.file, "Client,Sent,Received,Transfer Time(ms)\n");
     fflush(svr.file);
 
     // Make client processes
@@ -89,6 +89,7 @@ void client_work(struct ServerInfo info)
     write_init_msg(svr, initBuff);
     memset(sbuf, 'A', sizeof(sbuf));
 
+    fprintf(stdout, "\nSent: %s", initBuff);
     // Start time
     gettimeofday(&start, NULL);
 
@@ -129,13 +130,13 @@ void client_work(struct ServerInfo info)
     gettimeofday(&end, NULL);
     long s_time = (long)(start.tv_sec) * 1000 + (start.tv_usec / 1000);
     long e_time = (long)(end.tv_sec) * 1000 + (end.tv_usec / 1000);
-    double t_time = (e_time - s_time) / 1000;
+    long t_time = (e_time - s_time);
 
     // Close socket
     close(sd);
 
     // P(svr.sid);
-    fprintf(svr.file, "%d,%d,%d,%f\n", svr.clientNum, svr.clientSent, svr.clientRcvd, t_time);
+    fprintf(svr.file, "%d,%d,%d,%ld\n", svr.clientNum, svr.clientSent, svr.clientRcvd, t_time);
     fflush(svr.file);
     // V(svr.sid);
 }
