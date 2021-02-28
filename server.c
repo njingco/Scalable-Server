@@ -21,13 +21,19 @@ int main(int argc, char *argv[])
     // Signal Handler
     signal_handle(&act);
 
+    // Log File
+    FILE *file = fopen(SVR_LOG_DIR, "a+");
+
+    fprintf(file, "Client,IP,Request,Sent\n");
+    fflush(file);
+
     // Listener Socket
     fd_server = setup_listener_socket();
 
     // Create Worker Threads
     for (int i = 0; i < THREAD_COUNT; i++)
     {
-        if (pthread_create(&thread[i], NULL, event_handler, NULL))
+        if (pthread_create(&thread[i], NULL, event_handler, (void *)file))
         {
             SystemFatal("pthread create");
         }
@@ -66,10 +72,7 @@ void *event_handler(void *arg)
     *svr->rcvd = 0;
     *svr->sent = 0;
     svr->ip = (char *)malloc(sizeof(char) * IP_LEN);
-    svr->file = fopen(SVR_LOG_DIR, "w+");
-
-    fprintf(svr->file, "Client,IP,Request,Sent\n");
-    fflush(svr->file);
+    svr->file = (FILE *)arg;
 
     epoll_fd = setup_epoll(&event);
 
@@ -112,8 +115,8 @@ void *event_handler(void *arg)
                     // Increment Total Connection
                     pthread_mutex_lock(&connect_counter);
                     totalConnected += 1;
-                    // fprintf(stdout, "\rTotal Connected: %d         ", totalConnected);
-                    // fflush(stdout);
+                    fprintf(stdout, "\rTotal Connected: %d         ", totalConnected);
+                    fflush(stdout);
                     pthread_mutex_unlock(&connect_counter);
                 }
             }
@@ -129,8 +132,8 @@ void *event_handler(void *arg)
 
                     pthread_mutex_lock(&connect_counter);
                     totalConnected -= 1;
-                    // fprintf(stdout, "\rTotal Connected: %d         ", totalConnected);
-                    // fflush(stdout);
+                    fprintf(stdout, "\rTotal Connected: %d         ", totalConnected);
+                    fflush(stdout);
                     pthread_mutex_unlock(&connect_counter);
 
                     fprintf(svr->file, "%d,%s,%d,%d\n", *svr->client, svr->ip, *svr->rcvd, *svr->sent);
@@ -183,7 +186,7 @@ int echo_message(int fd, struct ServerStats *svr)
             char *token = strtok(buf, "|");
             *svr->client = atoi(token);
 
-            fprintf(stdout, "\nRCVD: %s", bp);
+            // fprintf(stdout, "\nRCVD: %s", bp);
             fflush(stdout);
 
             // ISSUE HERE
