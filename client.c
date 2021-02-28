@@ -3,8 +3,6 @@
 int totalRcvd;
 int totalSent;
 int clientNum;
-pthread_mutex_t total_mux;
-pthread_mutex_t clientNum_mux;
 
 int main(int argc, char *argv[])
 {
@@ -40,39 +38,29 @@ int main(int argc, char *argv[])
     // Open the logfile
     svr.cvs = fopen(FILE_DIR, "a+");
 
-    // Create the Client Threads
-    pthread_t thread[clients];
+    // Make client processes
+    pid_t id = 0;
 
     for (int i = 0; i < clients; i++)
     {
-        if (pthread_create(&thread[i], NULL, client_work, (void *)&svr))
+        if ((id = fork()) == 0)
         {
-            SystemFatal("\npthread create");
+            svr.clientNum = (++i);
+            // start client process
+            client_work(svr);
         }
     }
 
-    // Join threads
-    for (int i = 0; i < clients; i++)
-    {
-        pthread_join(thread[i], NULL);
-    }
-
-    fprintf(stdout, "\nEnd Program");
-    fflush(stdout);
     return (0);
 }
 
-void *client_work(void *arg)
+void client_work(struct ServerInfo info)
 {
-    struct ServerInfo svr = *((struct ServerInfo *)arg);
+    struct ServerInfo svr = info;
     int sd;
 
-    pthread_mutex_lock(&clientNum_mux);
-    svr.clientNum = (clientNum += 1);
-    pthread_mutex_unlock(&clientNum_mux);
-
     // Setup Socket
-    sd = setup_client(svr);
+    sd = setup_client(svr.port, svr.host, svr.clientNum);
 
     // Send Messages
     char initBuff[BUFLEN], rbuf[svr.msgLen], sbuf[svr.msgLen];
@@ -109,8 +97,8 @@ void *client_work(void *arg)
         send(sd, sp, msgLen, 0); // Messages
         svr.clientSent += 1;     // Messages Client Sent
 
-        fprintf(stdout, "\nClient: %d snd %d", svr.clientNum, svr.clientSent);
-        fflush(stdout);
+        // fprintf(stdout, "\nClient: %d snd %d", svr.clientNum, svr.clientSent);
+        // fflush(stdout);
 
         // Wait for Server Echo
         while ((n = recv(sd, rp, to_read, 0)) < msgLen)
@@ -121,8 +109,8 @@ void *client_work(void *arg)
 
         // Received Data
         svr.clientRcvd += 1; // Messages Client Received
-        fprintf(stdout, "\nClient: %d rcv %d", svr.clientNum, svr.clientRcvd);
-        fflush(stdout);
+        // fprintf(stdout, "\nClient: %d rcv %d", svr.clientNum, svr.clientRcvd);
+        // fflush(stdout);
     }
 
     // Close socket
@@ -130,8 +118,6 @@ void *client_work(void *arg)
     fprintf(stdout, "\n------------------");
     fprintf(stdout, "\nClient: %d Closed", svr.clientNum);
     fprintf(stdout, "\n------------------\n");
-
-    return NULL;
 }
 
 void write_init_msg(struct ServerInfo svr, char *buf)
@@ -153,7 +139,6 @@ void write_init_msg(struct ServerInfo svr, char *buf)
 void write_log(struct ServerInfo svr)
 {
     // Add to total Massages sent and received
-    pthread_mutex_lock(&total_mux);
     // Connected to (svr->host)
     // CLient Number (svr->clientNum)
     // Lengh of Message (svr->msgLen)
@@ -161,11 +146,9 @@ void write_log(struct ServerInfo svr)
     totalRcvd += svr.clientRcvd;
 
     // Write log here
-
-    pthread_mutex_unlock(&total_mux);
 }
 
-int setup_client(struct ServerInfo svr)
+int setup_client(int port, char *host, int clientNum)
 {
     int sd;
     struct hostent *hp;
@@ -180,9 +163,9 @@ int setup_client(struct ServerInfo svr)
 
     bzero((char *)&server, sizeof(struct sockaddr_in));
     server.sin_family = AF_INET;
-    server.sin_port = htons(svr.port);
+    server.sin_port = htons(port);
 
-    if ((hp = gethostbyname(svr.host)) == NULL)
+    if ((hp = gethostbyname(host)) == NULL)
     {
         fprintf(stderr, "Unknown server address\n");
         exit(1);
@@ -196,17 +179,16 @@ int setup_client(struct ServerInfo svr)
         perror("connect");
         exit(1);
     }
-    fprintf(stdout, "\nConnected %d\n", svr.clientNum);
-
+    fprintf(stdout, "\nConnected %d\n", clientNum);
+    fflush(stdout);
     return sd;
 }
+// // Prints the error stored in errno and aborts the program.
+// static void SystemFatal(const char *message)
+// {
+//     fprintf(stdout, "\n\nSYSTEM FATAL");
+//     fflush(stdout);
 
-// Prints the error stored in errno and aborts the program.
-static void SystemFatal(const char *message)
-{
-    fprintf(stdout, "\n\nSYSTEM FATAL");
-    fflush(stdout);
-
-    perror(message);
-    exit(EXIT_FAILURE);
-}
+//     perror(message);
+//     exit(EXIT_FAILURE);
+// }

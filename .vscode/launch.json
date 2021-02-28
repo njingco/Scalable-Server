@@ -28,7 +28,7 @@
         "type": "cppdbg",
         "request": "launch",
         "program": "${workspaceFolder}/client",
-        "args": ["20", "192.168.1.71", "10", "2048"],
+        "args": ["1000", "192.168.1.72", "10", "1000"],
         "stopAtEntry": false,
         "cwd": "${workspaceFolder}",
         "environment": [],

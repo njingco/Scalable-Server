@@ -113,8 +113,7 @@ void *event_handler(void *arg)
 
                     pthread_mutex_lock(&conn_sub);
                     totalConnected -= 1;
-                    // fprintf(stdout, "\n--Total Connected: %d", totalConnected);
-                    fprintf(stdout, "\n--Disconected: %d", *svr->client);
+                    fprintf(stdout, "\nTotal Connected: %d", totalConnected);
                     fflush(stdout);
 
                     pthread_mutex_unlock(&conn_sub);
@@ -223,8 +222,8 @@ int accept_connection(int epoll_fd, struct epoll_event *event)
     // Increment Total Connection
     pthread_mutex_lock(&conn_add);
     totalConnected += 1;
-    fprintf(stdout, "\nTotal Connected: %d \t\t Remote Address:  %s\n", totalConnected, inet_ntoa(remote_addr.sin_addr));
-    // fprintf(stdout, "\nTotal Connected: %d", totalConnected);
+    // fprintf(stdout, "\nTotal Connected: %d \t\t Remote Address:  %s\n", totalConnected, inet_ntoa(remote_addr.sin_addr));
+    fprintf(stdout, "\nTotal Connected: %d", totalConnected);
     fflush(stdout);
     pthread_mutex_unlock(&conn_add);
 
