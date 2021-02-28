@@ -99,6 +99,16 @@ void *event_handler(void *arg)
                     else
                         continue;
                 }
+                else
+                {
+                    // Increment Total Connection
+                    pthread_mutex_lock(&connect_counter);
+                    totalConnected += 1;
+                    // fprintf(stdout, "\nTotal Connected: %d \t\t Remote Address:  %s\n", totalConnected, inet_ntoa(remote_addr.sin_addr));
+                    fprintf(stdout, "\rTotal Connected: %d         ", totalConnected);
+                    fflush(stdout);
+                    pthread_mutex_unlock(&connect_counter);
+                }
             }
             else
             {
@@ -213,14 +223,6 @@ int accept_connection(int epoll_fd, struct epoll_event *event)
 
     if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_fd, event) == -1)
         SystemFatal("epoll_ctl");
-
-    // Increment Total Connection
-    pthread_mutex_lock(&connect_counter);
-    totalConnected += 1;
-    // fprintf(stdout, "\nTotal Connected: %d \t\t Remote Address:  %s\n", totalConnected, inet_ntoa(remote_addr.sin_addr));
-    fprintf(stdout, "\rTotal Connected: %d         ", totalConnected);
-    fflush(stdout);
-    pthread_mutex_unlock(&connect_counter);
 
     return 0;
 }

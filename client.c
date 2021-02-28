@@ -7,7 +7,7 @@ int clientNum;
 int main(int argc, char *argv[])
 {
     int clients; // Number of Clients Default
-
+    int status = 0;
     // VAR default
     totalRcvd = 0;
     totalSent = 0;
@@ -54,6 +54,10 @@ int main(int argc, char *argv[])
     }
     client_work(svr);
 
+    while ((id = waitpid(-1, &status, 0)) != -1)
+    {
+        printf("Process %d terminated\n", id);
+    }
     return (0);
 }
 
