@@ -5,6 +5,8 @@
  * 
  * FUNCTIONS:		
  *                  int client_work(struct ServerInfo info);
+ *                  long get_duration(struct timeval start, struct timeval end);
+ *                  void log_data(struct ServerInfo svr, long time);
  *                  void write_init_msg(struct ServerInfo svr, char *buf);
  *                  void write_log(struct ServerInfo svr);
  *                  int setup_client(int port, char *host);
@@ -151,7 +153,7 @@ int client_work(struct ServerInfo info)
 
         // Senda Data
         send(sd, sp, BUFLEN, 0); // Messages
-        svr.clientSent += 1;     // Messages Client Sent
+        svr.clientSent = 1;      // Messages Client Sent
 
         // Wait for Server Echo
         while ((n = recv(sd, rp, to_read, 0)) < BUFLEN)
@@ -161,21 +163,75 @@ int client_work(struct ServerInfo info)
         }
 
         // Received Data
-        svr.clientRcvd += 1; // Messages Client Received
-    }
+        svr.clientRcvd = 1; // Messages Client Received
 
-    // stop time
-    gettimeofday(&end, NULL);
-    long s_time = (long)(start.tv_sec) * 1000 + (start.tv_usec / 1000);
-    long e_time = (long)(end.tv_sec) * 1000 + (end.tv_usec / 1000);
-    long t_time = (e_time - s_time);
+        // Print Duration Update
+        gettimeofday(&end, NULL);
+        fprintf(stdout, "\rClient: %d Packet Returned after: %ld            ", svr.clientNum, get_duration(start, end));
+        fflush(stdout);
+
+        log_data(svr, get_duration(start, end));
+
+        svr.clientSent = 0;
+        svr.clientRcvd = 0;
+    }
 
     // Close socket
     close(sd);
 
-    fprintf(file, "%d,%d,%d,%ld\n", svr.clientNum, svr.clientSent, svr.clientRcvd, t_time);
-    fflush(file);
     return 0;
+}
+
+/*--------------------------------------------------------------------------
+ * FUNCTION:       get_duration
+ *
+ * DATE:           February  12, 2020
+ *
+ * REVISIONS:      NA
+ * 
+ * DESIGNER:       Nicole Jingco
+ *
+ * PROGRAMMER:     Nicole Jingco
+ *
+ * INTERFACE:      struct timeval start - start time
+ *                 struct timeval end - end time
+ *
+ * RETURNS:        Return the duration
+ *
+ * NOTES:
+ * This function returns the time elpsed from start to end
+ * -----------------------------------------------------------------------*/
+long get_duration(struct timeval start, struct timeval end)
+{
+    long s_time = (long)(start.tv_sec) * 1000 + (start.tv_usec / 1000);
+    long e_time = (long)(end.tv_sec) * 1000 + (end.tv_usec / 1000);
+
+    return (e_time - s_time);
+}
+
+/*--------------------------------------------------------------------------
+ * FUNCTION:       log_data
+ *
+ * DATE:           February  12, 2020
+ *
+ * REVISIONS:      NA
+ * 
+ * DESIGNER:       Nicole Jingco
+ *
+ * PROGRAMMER:     Nicole Jingco
+ *
+ * INTERFACE:      struct ServerInfo svr - server to get the client num
+ *                 long time -  duration
+ *
+ * RETURNS:        
+ *
+ * NOTES:
+ * This function logs the data to the og file
+ * -----------------------------------------------------------------------*/
+void log_data(struct ServerInfo svr, long time)
+{
+    fprintf(file, "%d,%d,%d,%ld\n", svr.clientNum, svr.clientSent, svr.clientRcvd, time);
+    fflush(file);
 }
 
 /*--------------------------------------------------------------------------

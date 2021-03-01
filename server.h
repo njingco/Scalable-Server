@@ -8,7 +8,7 @@
 #define FALSE 0
 #define EPOLL_QUEUE_LEN 250
 #define SERVER_PORT 7000
-#define THREAD_COUNT 3000
+#define THREAD_COUNT 10000
 #define SVR_LOG_DIR "serverLog.csv"
 
 struct ServerStats

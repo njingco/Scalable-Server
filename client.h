@@ -17,6 +17,8 @@ struct ServerInfo
 };
 
 int client_work(struct ServerInfo info);
+long get_duration(struct timeval start, struct timeval end);
+void log_data(struct ServerInfo svr, long time);
 void write_init_msg(struct ServerInfo svr, char *buf);
 void write_log(struct ServerInfo svr);
 int setup_client(int port, char *host);
