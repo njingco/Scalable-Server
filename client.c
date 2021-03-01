@@ -25,6 +25,8 @@
 #include "client.h"
 
 FILE *file;
+sem_t sem;
+
 /*--------------------------------------------------------------------------
  * FUNCTION:       main
  *
@@ -71,6 +73,9 @@ int main(int argc, char *argv[])
     file = fopen(CLNT_LOG_DIR, "w+");
     fprintf(file, "Client,Sent,Received,Transfer Time(ms)\n");
     fflush(file);
+
+    // initialize semaphore
+    sem_init(&sem, 0, 1);
 
     // Make client processes
     int i = 1;
@@ -144,7 +149,8 @@ int client_work(struct ServerInfo info)
     // Start time
     gettimeofday(&start, NULL);
 
-    while (svr.clientRcvd < (svr.transfers)) // First message is message length
+    int rcvd = 0;
+    while (rcvd < (svr.transfers)) // First message is message length
     {
         n = 0;
         sp = sbuf;
@@ -164,13 +170,17 @@ int client_work(struct ServerInfo info)
 
         // Received Data
         svr.clientRcvd = 1; // Messages Client Received
+        rcvd++;
 
         // Print Duration Update
+        sem_wait(&sem);
+
         gettimeofday(&end, NULL);
-        fprintf(stdout, "\rClient: %d Packet Returned after: %ld            ", svr.clientNum, get_duration(start, end));
+        fprintf(stdout, "\nClient: %d Packet Returned after: %ld", svr.clientNum, get_duration(start, end));
         fflush(stdout);
 
         log_data(svr, get_duration(start, end));
+        sem_post(&sem);
 
         svr.clientSent = 0;
         svr.clientRcvd = 0;
