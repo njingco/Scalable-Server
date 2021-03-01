@@ -14,7 +14,7 @@ int main(int argc, char *argv[])
 
     switch (argc)
     {
-    case 5:
+    case 4:
         clients = atoi(argv[1]);       // Number of clients
         svr.host = argv[2];            // IP
         svr.transfers = atoi(argv[3]); // Number of Transfers
@@ -88,6 +88,7 @@ int client_work(struct ServerInfo info)
         n = 0;
         sp = sbuf;
         rp = rbuf;
+        to_read = BUFLEN;
 
         // Senda Data
         send(sd, sp, BUFLEN, 0); // Messages

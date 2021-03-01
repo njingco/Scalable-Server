@@ -181,16 +181,16 @@ int echo_message(int fd, struct ServerStats *svr)
         // Client Number
         char *token = strtok(buf, "|");
         strcpy(svr->client, token);
-        fprintf(stdout, "\ndone recv");
 
         // SEND
         if (send(fd, bp, BUFLEN, 0) < 0)
+        {
             fprintf(stderr, "\nSending ERROR %d", errno);
-
+        }
         else
+        {
             *svr->sent += 1;
-
-        fprintf(stdout, "\ndone sending");
+        }
     }
     return 0;
 }
