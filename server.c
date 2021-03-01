@@ -148,9 +148,8 @@ void *event_handler(void *arg)
                 // IP, Client, number requested, number sent
                 fprintf(svr->file, "%s,%s,%d,%d\n", svr->ip, svr->client, *svr->rcvd, *svr->sent);
                 fflush(svr->file);
-                pthread_mutex_unlock(&connect_counter);
-
                 reset_stats(svr);
+                pthread_mutex_unlock(&connect_counter);
             }
         }
     }
@@ -159,16 +158,15 @@ void *event_handler(void *arg)
 
 int echo_message(int fd, struct ServerStats *svr)
 {
-    int length = BUFLEN;
     int n = 1, bytes_to_read;
-    char *bp, buf[length];
+    char *bp, buf[BUFLEN];
 
     while (n != 0)
     {
         bp = buf;
-        bytes_to_read = length;
+        bytes_to_read = BUFLEN;
 
-        while ((n = recv(fd, bp, bytes_to_read, 0)) < length)
+        while ((n = recv(fd, bp, bytes_to_read, 0)) < BUFLEN)
         {
             if (n <= 0)
                 return n;
@@ -180,21 +178,19 @@ int echo_message(int fd, struct ServerStats *svr)
         }
         *svr->rcvd += 1;
 
-        fprintf(stdout, "\nRCV: %s", bp);
-        fflush(stdout);
-
         // Client Number
         char *token = strtok(buf, "|");
         strcpy(svr->client, token);
+        fprintf(stdout, "\ndone recv");
 
-        fprintf(stdout, "\nClient %s", svr->client);
-        fflush(stdout);
         // SEND
-        if (send(fd, bp, length, 0) < 0)
+        if (send(fd, bp, BUFLEN, 0) < 0)
             fprintf(stderr, "\nSending ERROR %d", errno);
 
         else
             *svr->sent += 1;
+
+        fprintf(stdout, "\ndone sending");
     }
     return 0;
 }

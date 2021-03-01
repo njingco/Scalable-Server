@@ -83,9 +83,6 @@ int client_work(struct ServerInfo info)
     // Start time
     gettimeofday(&start, NULL);
 
-    fprintf(stdout, "\nSend: %s", sbuf);
-    fflush(stdout);
-
     while (svr.clientRcvd < (svr.transfers)) // First message is message length
     {
         n = 0;
@@ -95,6 +92,7 @@ int client_work(struct ServerInfo info)
         // Senda Data
         send(sd, sp, BUFLEN, 0); // Messages
         svr.clientSent += 1;     // Messages Client Sent
+
         // Wait for Server Echo
         while ((n = recv(sd, rp, to_read, 0)) < BUFLEN)
         {
