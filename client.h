@@ -14,7 +14,6 @@ struct ServerInfo
     int clientNum;
     int clientSent;
     int clientRcvd;
-    FILE *file;
 };
 
 int client_work(struct ServerInfo info);

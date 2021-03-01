@@ -19,14 +19,14 @@ struct ServerStats
     int *rcvd;
 };
 
-void signal_handle(struct sigaction *act);
-int setup_listener_socket();
 void *event_handler(void *arg);
-int setup_epoll(struct epoll_event *event);
-int accept_connection(int epoll_fd, struct epoll_event *event, struct ServerStats *svr);
 int echo_message(int fd, struct ServerStats *svr);
-static void SystemFatal(const char *message);
-void close_fd(int signo);
 void reset_stats(struct ServerStats *svr);
+int accept_connection(int epoll_fd, struct epoll_event *event);
+int setup_epoll(struct epoll_event *event);
+int setup_listener_socket();
+void signal_handle(struct sigaction *act);
+void close_fd(int signo);
+static void SystemFatal(const char *message);
 
 #endif

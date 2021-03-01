@@ -1,14 +1,58 @@
+/*---------------------------------------------------------------------------------------
+ * SOURCE FILE:	    server
+ * 
+ * PROGRAM:		    server
+ * 
+ * FUNCTIONS:		
+ *                  void *event_handler(void *arg);
+ *                  int echo_message(int fd, struct ServerStats *svr);
+ *                  void reset_stats(struct ServerStats *svr);
+ *                  int accept_connection(int epoll_fd, struct epoll_event *event);
+ *                  int setup_epoll(struct epoll_event *event);
+ *                  int setup_listener_socket();
+ *                  void signal_handle(struct sigaction *act);
+ *                  void close_fd(int signo);
+ *                  static void SystemFatal(const char *message);
+ * 
+ * DATE:			February  12, 2020
+ * 
+ * REVISIONS:		NA
+ * 
+ * DESIGNERS:       Nicole Jingco
+ * 
+ * PROGRAMMERS:		Nicole Jingco
+ * 
+ * Notes:
+ * This is the main file to run the server program
+ * ---------------------------------------------------------------------------------------*/
 #include "server.h"
 
 //Globals
 int fd_server;
 int totalConnected;
-int totalSent;
-int totalRcvd;
 
 pthread_mutex_t connect_counter;
 FILE *file;
 
+/*--------------------------------------------------------------------------
+ * FUNCTION:        main
+ *
+ * DATE:           February  12, 2020
+ *
+ * REVISIONS:      NA
+ * 
+ * DESIGNER:       Nicole Jingco
+ *
+ * PROGRAMMER:     Nicole Jingco
+ *
+ * INTERFACE:      int argc, char *argv[] - Not used
+ *
+ * RETURNS:        
+ *
+ * NOTES:
+ * This is the main server function. This function sets up the listener 
+ * socket , and creates the worker threads.
+ * -----------------------------------------------------------------------*/
 int main(int argc, char *argv[])
 {
     struct sigaction act;
@@ -16,8 +60,6 @@ int main(int argc, char *argv[])
 
     // Log Variables
     totalConnected = 0;
-    totalSent = 0;
-    totalRcvd = 0;
 
     // Signal Handler
     signal_handle(&act);
@@ -40,7 +82,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    fprintf(stdout, "\nStart Connecting:");
+    fprintf(stdout, "\nStart Connecting");
     fflush(stdout);
 
     // Join threads
@@ -56,6 +98,26 @@ int main(int argc, char *argv[])
     return 0;
 }
 
+/*--------------------------------------------------------------------------
+ * FUNCTION:       event_handler
+ *
+ * DATE:           February  12, 2020
+ *
+ * REVISIONS:      NA
+ * 
+ * DESIGNER:       Nicole Jingco
+ *
+ * PROGRAMMER:     Nicole Jingco
+ *
+ * INTERFACE:      void * arg - not used
+ *
+ * RETURNS:        void *
+ *
+ * NOTES:
+ * This is the functions threads use, This will setup epoll, and run the
+ * epoll wait. This will also respond to the events such as accept new
+ * clients and run the echo function.
+ * -----------------------------------------------------------------------*/
 void *event_handler(void *arg)
 {
     int epoll_fd = 0;
@@ -97,7 +159,7 @@ void *event_handler(void *arg)
             // Connection Request
             if (events[i].data.fd == fd_server)
             {
-                if (accept_connection(epoll_fd, events, svr) < 0)
+                if (accept_connection(epoll_fd, events) < 0)
                 {
                     if (errno != EAGAIN)
                     {
@@ -159,6 +221,26 @@ void *event_handler(void *arg)
     return NULL;
 }
 
+/*--------------------------------------------------------------------------
+ * FUNCTION:       echo_message
+ *
+ * DATE:           February  12, 2020
+ *
+ * REVISIONS:      NA
+ * 
+ * DESIGNER:       Nicole Jingco
+ *
+ * PROGRAMMER:     Nicole Jingco
+ *
+ * INTERFACE:      int fd -  socket
+ *                 struct ServerStats *svr -  stats
+ *
+ * RETURNS:        int -1 if error, 0 if socket closed, 1 continue
+ *
+ * NOTES:
+ * This function handles the receive and send to echo client message. 
+ * This will also populate the client data to the svr structure
+ * -----------------------------------------------------------------------*/
 int echo_message(int fd, struct ServerStats *svr)
 {
     int n = 1, bytes_to_read;
@@ -205,6 +287,24 @@ int echo_message(int fd, struct ServerStats *svr)
     return 0;
 }
 
+/*--------------------------------------------------------------------------
+ * FUNCTION:       reset_stats
+ *
+ * DATE:           February  12, 2020
+ *
+ * REVISIONS:      NA
+ * 
+ * DESIGNER:       Nicole Jingco
+ *
+ * PROGRAMMER:     Nicole Jingco
+ *
+ * INTERFACE:      struct ServerStats *svr - Stats
+ *
+ * RETURNS:        NA
+ *
+ * NOTES:
+ * This function reset the stats structure
+ * -----------------------------------------------------------------------*/
 void reset_stats(struct ServerStats *svr)
 {
     strcpy(svr->client, "0");
@@ -212,7 +312,26 @@ void reset_stats(struct ServerStats *svr)
     *svr->sent = 0;
 }
 
-int accept_connection(int epoll_fd, struct epoll_event *event, struct ServerStats *svr)
+/*--------------------------------------------------------------------------
+ * FUNCTION:       accept_connection
+ *
+ * DATE:           February  12, 2020
+ *
+ * REVISIONS:      NA
+ * 
+ * DESIGNER:       Nicole Jingco
+ *
+ * PROGRAMMER:     Nicole Jingco
+ *
+ * INTERFACE:      int epoll_fd -  listener socket
+ *                 struct epoll_event *event - epoll event
+ *
+ * RETURNS:        return -1 if an error occured
+ *
+ * NOTES:
+ * This function handles the accept, and set the socket to non blocking
+ * -----------------------------------------------------------------------*/
+int accept_connection(int epoll_fd, struct epoll_event *event)
 {
     int client_fd = 0;
     struct sockaddr_in remote_addr;
@@ -235,11 +354,27 @@ int accept_connection(int epoll_fd, struct epoll_event *event, struct ServerStat
     if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_fd, event) == -1)
         SystemFatal("epoll_ctl");
 
-    // strcpy(svr->ip, inet_ntoa(remote_addr.sin_addr));
-
     return 0;
 }
 
+/*--------------------------------------------------------------------------
+ * FUNCTION:       setup_epoll
+ *
+ * DATE:           February  12, 2020
+ *
+ * REVISIONS:      NA
+ * 
+ * DESIGNER:       Nicole Jingco
+ *
+ * PROGRAMMER:     Nicole Jingco
+ *
+ * INTERFACE:      struct epoll_event *event
+ *
+ * RETURNS:        return the epoll descriptor
+ *
+ * NOTES:
+ * This function sets up epoll 
+ * -----------------------------------------------------------------------*/
 int setup_epoll(struct epoll_event *event)
 {
     int epoll_fd;
@@ -259,6 +394,24 @@ int setup_epoll(struct epoll_event *event)
     return epoll_fd;
 }
 
+/*--------------------------------------------------------------------------
+ * FUNCTION:       setup_listener_socket
+ *
+ * DATE:           February  12, 2020
+ *
+ * REVISIONS:      NA
+ * 
+ * DESIGNER:       Nicole Jingco
+ *
+ * PROGRAMMER:     Nicole Jingco
+ *
+ * INTERFACE:      NA
+ *
+ * RETURNS:        Return the listener socket
+ *
+ * NOTES:
+ * Setup the listener socket
+ * -----------------------------------------------------------------------*/
 int setup_listener_socket()
 {
     int svrSocket;
@@ -294,6 +447,25 @@ int setup_listener_socket()
     return svrSocket;
 }
 
+/*--------------------------------------------------------------------------
+ * FUNCTION:       signal_handle
+ *
+ * DATE:           February  12, 2020
+ *
+ * REVISIONS:      NA
+ * 
+ * DESIGNER:       Nicole Jingco
+ *
+ * PROGRAMMER:     Nicole Jingco
+ *
+ * INTERFACE:      struct sigaction *act
+ *
+ * RETURNS:        NA
+ *
+ * NOTES:
+ * This function handles the signal handler to close and clear up 
+ * application
+ * -----------------------------------------------------------------------*/
 void signal_handle(struct sigaction *act)
 {
     // Set Up Signal Handler
@@ -308,7 +480,25 @@ void signal_handle(struct sigaction *act)
         exit(EXIT_FAILURE);
     }
 }
-// close fd
+
+/*--------------------------------------------------------------------------
+ * FUNCTION:       close_fd
+ *
+ * DATE:           February  12, 2020
+ *
+ * REVISIONS:      NA
+ * 
+ * DESIGNER:       Nicole Jingco
+ *
+ * PROGRAMMER:     Nicole Jingco
+ *
+ * INTERFACE:      int signo
+ *
+ * RETURNS:        NA
+ *
+ * NOTES:
+ * This function closes the socket and exits
+ * -----------------------------------------------------------------------*/
 void close_fd(int signo)
 {
     fprintf(stdout, "\n\n CLOSE\n");
@@ -318,7 +508,24 @@ void close_fd(int signo)
     exit(EXIT_SUCCESS);
 }
 
-// Prints the error stored in errno and aborts the program.
+/*--------------------------------------------------------------------------
+ * FUNCTION:       SystemFatal
+ *
+ * DATE:           February  12, 2020
+ *
+ * REVISIONS:      NA
+ * 
+ * DESIGNER:       Nicole Jingco
+ *
+ * PROGRAMMER:     Nicole Jingco
+ *
+ * INTERFACE:      const char *message - error message
+ *
+ * RETURNS:        NA
+ *
+ * NOTES:
+ * Prints the error stored in errno and aborts the program.
+ * -----------------------------------------------------------------------*/
 static void SystemFatal(const char *message)
 {
     fprintf(stdout, "\n\nSYSTEM FATAL");

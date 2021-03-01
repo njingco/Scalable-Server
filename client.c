@@ -1,5 +1,46 @@
+/*---------------------------------------------------------------------------------------
+ * SOURCE FILE:	    client
+ * 
+ * PROGRAM:		    client
+ * 
+ * FUNCTIONS:		
+ *                  int client_work(struct ServerInfo info);
+ *                  void write_init_msg(struct ServerInfo svr, char *buf);
+ *                  void write_log(struct ServerInfo svr);
+ *                  int setup_client(int port, char *host);
+ * 
+ * DATE:			February  12, 2020
+ * 
+ * REVISIONS:		NA
+ * 
+ * DESIGNERS:       Nicole Jingco
+ * 
+ * PROGRAMMERS:		Nicole Jingco
+ * 
+ * Notes:
+ * This is the main file to run the client program
+ * ---------------------------------------------------------------------------------------*/
 #include "client.h"
 
+FILE *file;
+/*--------------------------------------------------------------------------
+ * FUNCTION:       main
+ *
+ * DATE:           February  12, 2020
+ *
+ * REVISIONS:      NA
+ * 
+ * DESIGNER:       Nicole Jingco
+ *
+ * PROGRAMMER:     Nicole Jingco
+ *
+ * INTERFACE:      int argc, char *argv[] - Number of cliens, IP, and Number of transfer
+ *
+ * RETURNS:        return 0 if no issue;
+ *
+ * NOTES:
+ * This is the main function that create the client processes
+ * -----------------------------------------------------------------------*/
 int main(int argc, char *argv[])
 {
     int clients = 1; // Number of Clients Default
@@ -25,9 +66,9 @@ int main(int argc, char *argv[])
     }
 
     // Open the logfile
-    svr.file = fopen(CLNT_LOG_DIR, "w+");
-    fprintf(svr.file, "Client,Sent,Received,Transfer Time(ms)\n");
-    fflush(svr.file);
+    file = fopen(CLNT_LOG_DIR, "w+");
+    fprintf(file, "Client,Sent,Received,Transfer Time(ms)\n");
+    fflush(file);
 
     // Make client processes
     int i = 1;
@@ -59,6 +100,24 @@ int main(int argc, char *argv[])
     return 0;
 }
 
+/*--------------------------------------------------------------------------
+ * FUNCTION:       client_work
+ *
+ * DATE:           February  12, 2020
+ *
+ * REVISIONS:      NA
+ * 
+ * DESIGNER:       Nicole Jingco
+ *
+ * PROGRAMMER:     Nicole Jingco
+ *
+ * INTERFACE:      struct ServerInfo info
+ *
+ * RETURNS:        int -1 if error occured
+ *
+ * NOTES:
+ * This is the function that handles the client work and logs the data
+ * -----------------------------------------------------------------------*/
 int client_work(struct ServerInfo info)
 {
     struct ServerInfo svr = info;
@@ -114,11 +173,30 @@ int client_work(struct ServerInfo info)
     // Close socket
     close(sd);
 
-    fprintf(svr.file, "%d,%d,%d,%ld\n", svr.clientNum, svr.clientSent, svr.clientRcvd, t_time);
-    fflush(svr.file);
+    fprintf(file, "%d,%d,%d,%ld\n", svr.clientNum, svr.clientSent, svr.clientRcvd, t_time);
+    fflush(file);
     return 0;
 }
 
+/*--------------------------------------------------------------------------
+ * FUNCTION:       write_init_msg
+ *
+ * DATE:           February  12, 2020
+ *
+ * REVISIONS:      NA
+ * 
+ * DESIGNER:       Nicole Jingco
+ *
+ * PROGRAMMER:     Nicole Jingco
+ *
+ * INTERFACE:      struct ServerInfo svr - server to get the client num
+ *                 char *buf - data
+ *
+ * RETURNS:        
+ *
+ * NOTES:
+ * This function creates the message with the client number
+ * -----------------------------------------------------------------------*/
 void write_init_msg(struct ServerInfo svr, char *buf)
 {
     char client[NUM_LEN];
@@ -134,6 +212,25 @@ void write_init_msg(struct ServerInfo svr, char *buf)
     strncpy(buf, temp, strlen(client) + 2);
 }
 
+/*--------------------------------------------------------------------------
+ * FUNCTION:       setup_client
+ *
+ * DATE:           February  12, 2020
+ *
+ * REVISIONS:      NA
+ * 
+ * DESIGNER:       Nicole Jingco
+ *
+ * PROGRAMMER:     Nicole Jingco
+ *
+ * INTERFACE:      int port - port number
+ *                 char *host - ip
+ *
+ * RETURNS:        return the socket
+ *
+ * NOTES:
+ * This function sets up the socket
+ * -----------------------------------------------------------------------*/
 int setup_client(int port, char *host)
 {
     int sd;
