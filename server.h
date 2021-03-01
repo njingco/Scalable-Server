@@ -17,7 +17,6 @@ struct ServerStats
     char *client;
     int *sent;
     int *rcvd;
-    FILE *file;
 };
 
 void signal_handle(struct sigaction *act);

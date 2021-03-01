@@ -6,10 +6,13 @@ Compile: make
 
 Server: ./server
 
-Client: ./client [ip] [number of echoes] [Client number]
+Client: ./client [Client number] [ip] [number of echoes]
 
 -- Run Test --
 
-Have Server running on the Terminal (Don't Use the VSCode Terminal)
-
 Run Client on another computer: ./test_client.sh
+
+Server CSV Summary
+Clients: UNIQUE(B2:B)
+Request: =SUMIF(B:B,H2,C:C)
+Sent : =SUMIF(B:B,H2,D:D)

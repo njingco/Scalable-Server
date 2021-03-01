@@ -7,6 +7,7 @@ int totalSent;
 int totalRcvd;
 
 pthread_mutex_t connect_counter;
+FILE *file;
 
 int main(int argc, char *argv[])
 {
@@ -22,7 +23,7 @@ int main(int argc, char *argv[])
     signal_handle(&act);
 
     // Log File
-    FILE *file = fopen(SVR_LOG_DIR, "a+");
+    file = fopen(SVR_LOG_DIR, "a+");
 
     fprintf(file, "IP,Client,Request,Sent\n");
     fflush(file);
@@ -33,7 +34,7 @@ int main(int argc, char *argv[])
     // Create Worker Threads
     for (i = 0; i < THREAD_COUNT; i++)
     {
-        if (pthread_create(&thread[i], NULL, event_handler, (void *)file))
+        if (pthread_create(&thread[i], NULL, event_handler, NULL))
         {
             SystemFatal("pthread create");
         }
@@ -67,7 +68,6 @@ void *event_handler(void *arg)
     svr->rcvd = (int *)malloc(sizeof(int));
     svr->sent = (int *)malloc(sizeof(int));
     svr->ip = (char *)malloc(sizeof(char) * IP_LEN);
-    svr->file = (FILE *)arg;
 
     reset_stats(svr);
 
@@ -144,12 +144,15 @@ void *event_handler(void *arg)
                 }
 
                 // reset stats
-                pthread_mutex_lock(&connect_counter);
-                // IP, Client, number requested, number sent
-                fprintf(svr->file, "%s,%s,%d,%d\n", svr->ip, svr->client, *svr->rcvd, *svr->sent);
-                fflush(svr->file);
-                reset_stats(svr);
-                pthread_mutex_unlock(&connect_counter);
+                if (*svr->rcvd != 0 || *svr->sent != 0)
+                {
+                    pthread_mutex_lock(&connect_counter);
+                    // IP, Client, number requested, number sent
+                    fprintf(file, "%s,%s,%d,%d\n", svr->ip, svr->client, *svr->rcvd, *svr->sent);
+                    fflush(file);
+                    reset_stats(svr);
+                    pthread_mutex_unlock(&connect_counter);
+                }
             }
         }
     }
@@ -160,6 +163,13 @@ int echo_message(int fd, struct ServerStats *svr)
 {
     int n = 1, bytes_to_read;
     char *bp, buf[BUFLEN];
+
+    struct sockaddr_in addr;
+    socklen_t len;
+    len = sizeof addr;
+
+    getpeername(fd, (struct sockaddr *)&addr, &len);
+    strcpy(svr->ip, inet_ntoa(addr.sin_addr));
 
     while (n != 0)
     {
@@ -225,7 +235,7 @@ int accept_connection(int epoll_fd, struct epoll_event *event, struct ServerStat
     if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_fd, event) == -1)
         SystemFatal("epoll_ctl");
 
-    strcpy(svr->ip, inet_ntoa(remote_addr.sin_addr));
+    // strcpy(svr->ip, inet_ntoa(remote_addr.sin_addr));
 
     return 0;
 }
