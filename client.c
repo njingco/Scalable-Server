@@ -132,7 +132,7 @@ void write_init_msg(struct ServerInfo svr, char *buf)
     strncat(temp, client, strlen(client));
     strncat(temp, split, 1);
 
-    strcpy(buf, temp);
+    strncpy(buf, temp, strlen(client) + 2);
 }
 
 int setup_client(int port, char *host)

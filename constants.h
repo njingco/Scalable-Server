@@ -24,5 +24,6 @@
 
 #define SERVER_PORT 7000
 #define BUFLEN 1024 // Buffer length
+#define NUM_LEN 6
 
 #endif

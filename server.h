@@ -14,7 +14,7 @@
 struct ServerStats
 {
     char *ip;
-    int *client;
+    char *client;
     int *sent;
     int *rcvd;
     FILE *file;

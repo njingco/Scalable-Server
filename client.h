@@ -4,7 +4,6 @@
 #include "constants.h"
 #define SERVER_TCP_PORT 7000 // Default port
 #define THREAD_COUNT 15000
-#define NUM_LEN 6
 #define CLNT_LOG_DIR "clientLog.csv"
 
 struct ServerInfo

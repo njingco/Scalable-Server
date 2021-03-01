@@ -63,7 +63,7 @@ void *event_handler(void *arg)
     struct epoll_event event;
 
     struct ServerStats *svr = (struct ServerStats *)malloc(sizeof(struct ServerStats));
-    svr->client = (int *)malloc(sizeof(int));
+    svr->client = (char *)malloc(sizeof(char) * NUM_LEN);
     svr->rcvd = (int *)malloc(sizeof(int));
     svr->sent = (int *)malloc(sizeof(int));
     svr->ip = (char *)malloc(sizeof(char) * IP_LEN);
@@ -146,7 +146,7 @@ void *event_handler(void *arg)
                 // reset stats
                 pthread_mutex_lock(&connect_counter);
                 // IP, Client, number requested, number sent
-                fprintf(svr->file, "%s,%d,%d,%d\n", svr->ip, *svr->client, *svr->rcvd, *svr->sent);
+                fprintf(svr->file, "%s,%s,%d,%d\n", svr->ip, svr->client, *svr->rcvd, *svr->sent);
                 fflush(svr->file);
                 pthread_mutex_unlock(&connect_counter);
 
@@ -185,11 +185,10 @@ int echo_message(int fd, struct ServerStats *svr)
 
         // Client Number
         char *token = strtok(buf, "|");
-        *svr->client = atoi(token);
+        strcpy(svr->client, token);
 
-        fprintf(stdout, "\nClient %d", *svr->client);
+        fprintf(stdout, "\nClient %s", svr->client);
         fflush(stdout);
-
         // SEND
         if (send(fd, bp, length, 0) < 0)
             fprintf(stderr, "\nSending ERROR %d", errno);
@@ -202,7 +201,7 @@ int echo_message(int fd, struct ServerStats *svr)
 
 void reset_stats(struct ServerStats *svr)
 {
-    *svr->client = 0;
+    strcpy(svr->client, "0");
     *svr->rcvd = 0;
     *svr->sent = 0;
 }
