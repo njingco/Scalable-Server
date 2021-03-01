@@ -8,14 +8,13 @@
 #define FALSE 0
 #define EPOLL_QUEUE_LEN 250
 #define SERVER_PORT 7000
-#define THREAD_COUNT 2000
+#define THREAD_COUNT 3000
 #define SVR_LOG_DIR "serverLog.csv"
 
 struct ServerStats
 {
     char *ip;
     int *client;
-    int *msgLen;
     int *sent;
     int *rcvd;
     FILE *file;
@@ -29,5 +28,6 @@ int accept_connection(int epoll_fd, struct epoll_event *event, struct ServerStat
 int echo_message(int fd, struct ServerStats *svr);
 static void SystemFatal(const char *message);
 void close_fd(int signo);
+void reset_stats(struct ServerStats *svr);
 
 #endif

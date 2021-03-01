@@ -63,17 +63,13 @@ void *event_handler(void *arg)
     struct epoll_event event;
 
     struct ServerStats *svr = (struct ServerStats *)malloc(sizeof(struct ServerStats));
-    svr->msgLen = (int *)malloc(sizeof(int));
     svr->client = (int *)malloc(sizeof(int));
     svr->rcvd = (int *)malloc(sizeof(int));
     svr->sent = (int *)malloc(sizeof(int));
-
-    *svr->msgLen = BUFLEN;
-    *svr->client = 0;
-    *svr->rcvd = 0;
-    *svr->sent = 0;
     svr->ip = (char *)malloc(sizeof(char) * IP_LEN);
     svr->file = (FILE *)arg;
+
+    reset_stats(svr);
 
     epoll_fd = setup_epoll(&event);
 
@@ -136,10 +132,6 @@ void *event_handler(void *arg)
                     totalConnected -= 1;
                     fprintf(stdout, "\rTotal Connected: %d         ", totalConnected);
                     fflush(stdout);
-
-                    // IP, Client, number requested, number sent
-                    fprintf(svr->file, "%s,%d,%d,%d\n", svr->ip, *svr->client, *svr->rcvd, *svr->sent);
-                    fflush(svr->file);
                     pthread_mutex_unlock(&connect_counter);
                 }
                 else if (echo < 0)
@@ -150,6 +142,15 @@ void *event_handler(void *arg)
                         close(events[i].data.fd);
                     }
                 }
+
+                // reset stats
+                pthread_mutex_lock(&connect_counter);
+                // IP, Client, number requested, number sent
+                fprintf(svr->file, "%s,%d,%d,%d\n", svr->ip, *svr->client, *svr->rcvd, *svr->sent);
+                fflush(svr->file);
+                pthread_mutex_unlock(&connect_counter);
+
+                reset_stats(svr);
             }
         }
     }
@@ -159,10 +160,6 @@ void *event_handler(void *arg)
 int echo_message(int fd, struct ServerStats *svr)
 {
     int length = BUFLEN;
-
-    if (*svr->msgLen != BUFLEN)
-        length = *svr->msgLen;
-
     int n = 1, bytes_to_read;
     char *bp, buf[length];
 
@@ -181,34 +178,28 @@ int echo_message(int fd, struct ServerStats *svr)
                 bytes_to_read -= n;
             }
         }
-        // Get the Client number and Message Length
-        if (*svr->client == 0)
-        {
-            // get number
-            char *token = strtok(buf, "|");
-            *svr->client = atoi(token);
-
-            // fprintf(stdout, "\nRCVD: %s", bp);
-            fflush(stdout);
-
-            // ISSUE HERE
-            // token = strtok(NULL, "|");
-            // *svr->msgLen = atoi(token);
-            // token = strtok(NULL, "|");
-        }
-
         *svr->rcvd += 1;
 
+        // Client Number
+        char *token = strtok(buf, "|");
+        *svr->client = atoi(token);
+        fflush(stdout);
+
+        // SEND
         if (send(fd, bp, length, 0) < 0)
-        {
             fprintf(stderr, "\nSending ERROR %d", errno);
-        }
+
         else
-        {
             *svr->sent += 1;
-        }
     }
     return 0;
+}
+
+void reset_stats(struct ServerStats *svr)
+{
+    *svr->client = 0;
+    *svr->rcvd = 0;
+    *svr->sent = 0;
 }
 
 int accept_connection(int epoll_fd, struct epoll_event *event, struct ServerStats *svr)
@@ -217,7 +208,7 @@ int accept_connection(int epoll_fd, struct epoll_event *event, struct ServerStat
     struct sockaddr_in remote_addr;
     socklen_t addr_size = sizeof(struct sockaddr_in);
 
-    // Accept new Connectinos
+    // Accept new Connections
     client_fd = accept(fd_server, (struct sockaddr *)&remote_addr, &addr_size);
 
     if (client_fd == -1)

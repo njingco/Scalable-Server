@@ -11,7 +11,6 @@ int main(int argc, char *argv[])
     svr.clientNum = 0;
     svr.clientSent = 0;
     svr.clientRcvd = 0;
-    svr.msgLen = BUFLEN;
 
     switch (argc)
     {
@@ -19,10 +18,9 @@ int main(int argc, char *argv[])
         clients = atoi(argv[1]);       // Number of clients
         svr.host = argv[2];            // IP
         svr.transfers = atoi(argv[3]); // Number of Transfers
-        svr.msgLen = atoi(argv[4]);    // Message Length
         break;
     default:
-        fprintf(stderr, "\nUsage: [Number of Clients] [IP] [Transfer Times] [Message Length]\n");
+        fprintf(stderr, "\nUsage: [Number of Clients] [IP] [Transfer Times] \n");
         exit(1);
     }
 
@@ -53,7 +51,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    if (client_work(svr))
+    if (client_work(svr) < 0)
     {
         return -1;
     }
@@ -68,49 +66,38 @@ int client_work(struct ServerInfo info)
     struct timeval start, end;
 
     // Setup Socket
-    sd = setup_client(svr.port, svr.host, svr.clientNum);
+    sd = setup_client(svr.port, svr.host);
     if (sd < 0)
         return -1;
 
     // Send Messages
-    char initBuff[BUFLEN], rbuf[svr.msgLen], sbuf[svr.msgLen];
+    char rbuf[BUFLEN], sbuf[BUFLEN];
     char *rp, *sp;
-    int n, msgLen, to_read;
+    int n, to_read;
 
     // Set up Buffer with Client Number and length of message
-    memset(initBuff, 0, sizeof(initBuff));
     memset(sbuf, 0, sizeof(sbuf));
 
-    write_init_msg(svr, initBuff);
     memset(sbuf, 'A', sizeof(sbuf));
+    write_init_msg(svr, sbuf);
 
     // Start time
     gettimeofday(&start, NULL);
 
+    fprintf(stdout, "\nSend: %s", sbuf);
+    fflush(stdout);
+
     while (svr.clientRcvd < (svr.transfers)) // First message is message length
     {
         n = 0;
-
-        if (svr.clientRcvd == 0)
-        {
-            sp = initBuff;
-            rp = initBuff;
-            msgLen = BUFLEN;
-            to_read = BUFLEN;
-        }
-        else
-        {
-            sp = sbuf;
-            rp = rbuf;
-            msgLen = svr.msgLen;
-            to_read = svr.msgLen;
-        }
+        sp = sbuf;
+        rp = rbuf;
 
         // Senda Data
-        send(sd, sp, msgLen, 0); // Messages
+        send(sd, sp, BUFLEN, 0); // Messages
         svr.clientSent += 1;     // Messages Client Sent
         // Wait for Server Echo
-        while ((n = recv(sd, rp, to_read, 0)) < msgLen)
+        while ((n = recv(sd, rp, to_read, 0)) < BUFLEN)
         {
             rp += n;
             to_read -= n;
@@ -137,20 +124,15 @@ int client_work(struct ServerInfo info)
 void write_init_msg(struct ServerInfo svr, char *buf)
 {
     char client[NUM_LEN];
-    char length[NUM_LEN];
     char *split = "|";
 
     sprintf(client, "%d", svr.clientNum);
-    sprintf(length, "%d", svr.msgLen);
 
     strncat(buf, client, strlen(client));
     strncat(buf, split, 1);
-
-    strncat(buf, length, strlen(length));
-    strncat(buf, split, 1);
 }
 
-int setup_client(int port, char *host, int clientNum)
+int setup_client(int port, char *host)
 {
     int sd;
     struct hostent *hp;

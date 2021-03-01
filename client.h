@@ -11,18 +11,16 @@ struct ServerInfo
 {
     char *host;
     int port;
-    int msgLen;
     int transfers;
     int clientNum;
     int clientSent;
     int clientRcvd;
-    int sid;
     FILE *file;
 };
 
 int client_work(struct ServerInfo info);
 void write_init_msg(struct ServerInfo svr, char *buf);
 void write_log(struct ServerInfo svr);
-int setup_client(int port, char *host, int clientNum);
+int setup_client(int port, char *host);
 
 #endif
