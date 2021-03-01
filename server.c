@@ -150,7 +150,6 @@ void *event_handler(void *arg)
                 if (errno != EAGAIN)
                 {
                     fprintf(stderr, "EPOLL ERROR %d", errno);
-                    // perror("\nEPOLL ERROR");
                     close(events[i].data.fd);
                     continue;
                 }
@@ -164,7 +163,6 @@ void *event_handler(void *arg)
                     if (errno != EAGAIN)
                     {
                         fprintf(stdout, "\nERROR ACCEPTING NEW CONNECTIONS %d", errno);
-                        // perror("\nERROR ACCEPTING NEW CONNECTIONS");
                         close_fd(errno);
                     }
                     else
@@ -474,8 +472,6 @@ void signal_handle(struct sigaction *act)
 
     if ((sigemptyset(&act->sa_mask) == -1 || sigaction(SIGINT, act, NULL) == -1))
     {
-        //!Print logs
-
         perror("Failed to set SIGINT handler");
         exit(EXIT_FAILURE);
     }
