@@ -72,12 +72,11 @@ int client_work(struct ServerInfo info)
 
     // Send Messages
     char rbuf[BUFLEN], sbuf[BUFLEN];
+
     char *rp, *sp;
     int n, to_read;
 
     // Set up Buffer with Client Number and length of message
-    memset(sbuf, 0, sizeof(sbuf));
-
     memset(sbuf, 'A', sizeof(sbuf));
     write_init_msg(svr, sbuf);
 
@@ -128,8 +127,12 @@ void write_init_msg(struct ServerInfo svr, char *buf)
 
     sprintf(client, "%d", svr.clientNum);
 
-    strncat(buf, client, strlen(client));
-    strncat(buf, split, 1);
+    char temp[strlen(client) + 2];
+
+    strncat(temp, client, strlen(client));
+    strncat(temp, split, 1);
+
+    strcpy(buf, temp);
 }
 
 int setup_client(int port, char *host)

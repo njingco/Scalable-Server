@@ -180,9 +180,14 @@ int echo_message(int fd, struct ServerStats *svr)
         }
         *svr->rcvd += 1;
 
+        fprintf(stdout, "\nRCV: %s", bp);
+        fflush(stdout);
+
         // Client Number
         char *token = strtok(buf, "|");
         *svr->client = atoi(token);
+
+        fprintf(stdout, "\nClient %d", *svr->client);
         fflush(stdout);
 
         // SEND
